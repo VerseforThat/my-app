@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, BookHeart, Clock, Settings as SettingsIcon } from 'lucide-react-native';
+import { Home, BookHeart, Clock, Settings as SettingsIcon, Search } from 'lucide-react-native';
 import { Platform, StyleSheet } from 'react-native';
 import { colors, fonts } from '../../src/theme';
 
@@ -20,6 +20,13 @@ export default function TabsLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color }) => <Home size={22} color={color} strokeWidth={1.5} />,
+        }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{
+          title: 'Search',
+          tabBarIcon: ({ color }) => <Search size={22} color={color} strokeWidth={1.5} />,
         }}
       />
       <Tabs.Screen

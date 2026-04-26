@@ -24,11 +24,6 @@ export type User = {
   email: string;
   name?: string;
   bible_translation: 'NIV' | 'KJV';
-  verses_used: number;
-  free_verses_remaining: number;
-  subscription_status: 'free' | 'trialing' | 'active' | 'expired';
-  is_premium: boolean;
-  current_period_end?: string | null;
 };
 export type AuthResponse = { access_token: string; token_type: string; user: User };
 export type VerseMatch = {
@@ -45,6 +40,12 @@ export type DailyVerse = {
   explanation: string;
   date: string;
 };
+export type VerseContext = { reference: string; context_text: string };
+export type DeeperExplanation = { reference: string; explanation: string };
+export type RelatedVerseItem = { reference: string; verse_text: string; note: string };
+export type RelatedVerses = { items: RelatedVerseItem[] };
+export type VerseSearchItem = { reference: string; verse_text: string; note: string };
+export type VerseSearchResponse = { query: string; items: VerseSearchItem[] };
 
 export const formatError = (err: any): string => {
   const detail = err?.response?.data?.detail;

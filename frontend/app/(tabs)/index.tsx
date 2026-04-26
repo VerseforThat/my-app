@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -14,9 +14,26 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { Heart, Sparkles, Sunrise, Share2, BookOpen, X, Lock } from 'lucide-react-native';
-import { api, formatError, VerseMatch, DailyVerse } from '../../src/api';
+import {
+  Heart,
+  Sparkles,
+  Sunrise,
+  Share2,
+  BookOpen,
+  X,
+  MessageSquareQuote,
+  ListPlus,
+  RefreshCcw,
+} from 'lucide-react-native';
+import {
+  api,
+  formatError,
+  VerseMatch,
+  DailyVerse,
+  VerseContext,
+  DeeperExplanation,
+  RelatedVerseItem,
+} from '../../src/api';
 import { useAuth } from '../../src/AuthContext';
 import { colors, fonts, radii } from '../../src/theme';
 import VersePlayer from '../../src/VersePlayer';
@@ -30,9 +47,10 @@ const QUICK_PROMPTS = [
   'Questioning everything',
 ];
 
+type SheetKind = 'context' | 'explanation' | 'related' | null;
+
 export default function Home() {
-  const router = useRouter();
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const [problem, setProblem] = useState('');
   const [loading, setLoading] = useState(false);
   const [match, setMatch] = useState<VerseMatch | null>(null);
@@ -41,12 +59,15 @@ export default function Home() {
   const [savingFav, setSavingFav] = useState(false);
   const [daily, setDaily] = useState<DailyVerse | null>(null);
   const [shareToast, setShareToast] = useState('');
+  const scrollRef = useRef<ScrollView | null>(null);
 
-  // Context modal
-  const [contextOpen, setContextOpen] = useState(false);
-  const [contextLoading, setContextLoading] = useState(false);
-  const [contextData, setContextData] = useState<{ reference: string; context_text: string } | null>(null);
-  const [contextError, setContextError] = useState('');
+  // Sheet state
+  const [sheet, setSheet] = useState<SheetKind>(null);
+  const [sheetLoading, setSheetLoading] = useState(false);
+  const [sheetError, setSheetError] = useState('');
+  const [contextData, setContextData] = useState<VerseContext | null>(null);
+  const [deeperData, setDeeperData] = useState<DeeperExplanation | null>(null);
+  const [relatedItems, setRelatedItems] = useState<RelatedVerseItem[]>([]);
 
   useEffect(() => {
     api.get<DailyVerse>('/daily-verse').then((res) => setDaily(res.data)).catch(() => {});
@@ -65,14 +86,9 @@ export default function Home() {
     try {
       const res = await api.post<VerseMatch>('/verses/match', { problem: text.trim() });
       setMatch(res.data);
-      await refreshUser();
+      setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 50);
     } catch (e: any) {
-      const detail = e?.response?.data?.detail;
-      if (e?.response?.status === 402 && detail?.error === 'free_limit_reached') {
-        router.push({ pathname: '/paywall', params: { reason: 'limit' } });
-      } else {
-        setError(formatError(e));
-      }
+      setError(formatError(e));
     } finally {
       setLoading(false);
     }
@@ -102,31 +118,43 @@ export default function Home() {
     }
   };
 
-  const onMoreContext = async () => {
+  const openSheet = async (kind: Exclude<SheetKind, null>) => {
     if (!match) return;
-    if (!user?.is_premium) {
-      router.push({ pathname: '/paywall', params: { reason: 'context' } });
-      return;
-    }
-    setContextOpen(true);
+    setSheet(kind);
+    setSheetLoading(true);
+    setSheetError('');
     setContextData(null);
-    setContextError('');
-    setContextLoading(true);
+    setDeeperData(null);
+    setRelatedItems([]);
     try {
-      const res = await api.get(`/verses/${match.id}/context`);
-      setContextData(res.data);
+      if (kind === 'context') {
+        const res = await api.get<VerseContext>(`/verses/${match.id}/context`);
+        setContextData(res.data);
+      } else if (kind === 'explanation') {
+        const res = await api.get<DeeperExplanation>(`/verses/${match.id}/explanation`);
+        setDeeperData(res.data);
+      } else if (kind === 'related') {
+        const res = await api.get<{ items: RelatedVerseItem[] }>(`/verses/${match.id}/related`);
+        setRelatedItems(res.data.items || []);
+      }
     } catch (e: any) {
-      setContextError(formatError(e));
+      setSheetError(formatError(e));
     } finally {
-      setContextLoading(false);
+      setSheetLoading(false);
     }
   };
 
-  const onNew = () => {
+  const closeSheet = () => {
+    setSheet(null);
+    setSheetError('');
+  };
+
+  const onSearchAgain = () => {
     setMatch(null);
     setProblem('');
     setError('');
     setFavorited(false);
+    setTimeout(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), 50);
   };
 
   const greeting = (() => {
@@ -136,13 +164,13 @@ export default function Home() {
     return 'Good evening';
   })();
 
-  const quotaText = user
-    ? user.is_premium
-      ? user.subscription_status === 'trialing'
-        ? 'Free trial active'
-        : 'Premium'
-      : `${user.free_verses_remaining} of 3 free verses left`
-    : '';
+  const sheetTitle = sheet === 'context'
+    ? 'Surrounding Context'
+    : sheet === 'explanation'
+      ? 'Deeper Explanation'
+      : sheet === 'related'
+        ? 'Other Relatable Verses'
+        : '';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -153,6 +181,7 @@ export default function Home() {
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <ScrollView
+            ref={scrollRef}
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -161,20 +190,7 @@ export default function Home() {
               <Text style={styles.greeting}>
                 {greeting}{user?.name ? `, ${user.name}` : ''}
               </Text>
-              <View style={styles.brandRow}>
-                <Text style={styles.brand} testID="home-brand">Verse for That</Text>
-                {!!quotaText && (
-                  <View style={[
-                    styles.quotaPill,
-                    user?.is_premium && styles.quotaPillPremium,
-                  ]} testID="quota-pill">
-                    <Text style={[
-                      styles.quotaText,
-                      user?.is_premium && { color: colors.bg },
-                    ]}>{quotaText}</Text>
-                  </View>
-                )}
-              </View>
+              <Text style={styles.brand} testID="home-brand">Verse for That</Text>
             </View>
 
             {!match && (
@@ -260,21 +276,45 @@ export default function Home() {
                 <View style={{ height: 24 }} />
                 <VersePlayer text={`${match.verse_text}. ${match.explanation}`} />
 
-                <TouchableOpacity
-                  style={styles.contextBtn}
-                  onPress={onMoreContext}
-                  testID="verse-more-context-btn"
-                  activeOpacity={0.8}
-                >
-                  <BookOpen size={16} color={colors.textPrimary} strokeWidth={1.5} />
-                  <Text style={styles.contextBtnText}>Read more context</Text>
-                  {!user?.is_premium && (
-                    <View style={styles.lockTag}>
-                      <Lock size={10} color={colors.bg} strokeWidth={2} />
-                      <Text style={styles.lockTagText}>PREMIUM</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
+                {/* 4-action grid */}
+                <View style={styles.actionGrid}>
+                  <TouchableOpacity
+                    style={styles.actionTile}
+                    onPress={() => openSheet('context')}
+                    testID="action-context"
+                    activeOpacity={0.85}
+                  >
+                    <BookOpen size={20} color={colors.textPrimary} strokeWidth={1.5} />
+                    <Text style={styles.actionTileText}>Read more{'\n'}context</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionTile}
+                    onPress={() => openSheet('explanation')}
+                    testID="action-explanation"
+                    activeOpacity={0.85}
+                  >
+                    <MessageSquareQuote size={20} color={colors.textPrimary} strokeWidth={1.5} />
+                    <Text style={styles.actionTileText}>Deeper{'\n'}explanation</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionTile}
+                    onPress={() => openSheet('related')}
+                    testID="action-related"
+                    activeOpacity={0.85}
+                  >
+                    <ListPlus size={20} color={colors.textPrimary} strokeWidth={1.5} />
+                    <Text style={styles.actionTileText}>Other relatable{'\n'}verses</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.actionTile}
+                    onPress={onSearchAgain}
+                    testID="action-search-again"
+                    activeOpacity={0.85}
+                  >
+                    <RefreshCcw size={20} color={colors.textPrimary} strokeWidth={1.5} />
+                    <Text style={styles.actionTileText}>Search{'\n'}again</Text>
+                  </TouchableOpacity>
+                </View>
 
                 <View style={styles.actions}>
                   <TouchableOpacity
@@ -306,15 +346,6 @@ export default function Home() {
                   </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity
-                  style={styles.newBtn}
-                  onPress={onNew}
-                  testID="verse-new-btn"
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.newBtnText}>Ask another</Text>
-                </TouchableOpacity>
-
                 {!!shareToast && (
                   <View style={styles.toast} testID="share-toast">
                     <Text style={styles.toastText}>{shareToast}</Text>
@@ -326,40 +357,52 @@ export default function Home() {
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
-      {/* Context Modal */}
+      {/* Reusable sheet for context / explanation / related */}
       <Modal
-        visible={contextOpen}
+        visible={sheet !== null}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setContextOpen(false)}
+        onRequestClose={closeSheet}
       >
         <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Surrounding Context</Text>
-            <TouchableOpacity
-              onPress={() => setContextOpen(false)}
-              hitSlop={10}
-              testID="context-close-btn"
-            >
+            <Text style={styles.modalTitle}>{sheetTitle}</Text>
+            <TouchableOpacity onPress={closeSheet} hitSlop={10} testID="sheet-close-btn">
               <X size={26} color={colors.textPrimary} strokeWidth={1.5} />
             </TouchableOpacity>
           </View>
           <ScrollView contentContainerStyle={styles.modalScroll} showsVerticalScrollIndicator={false}>
-            {contextLoading && (
+            {sheetLoading && (
               <View style={styles.modalCenter}>
                 <ActivityIndicator color={colors.accent} />
-                <Text style={styles.modalLoading}>Loading the wider passage…</Text>
+                <Text style={styles.modalLoading}>One moment…</Text>
               </View>
             )}
-            {contextError ? (
-              <Text style={styles.error} testID="context-error">{contextError}</Text>
-            ) : null}
-            {contextData && (
+            {!!sheetError && <Text style={styles.error} testID="sheet-error">{sheetError}</Text>}
+
+            {sheet === 'context' && contextData && (
               <>
-                <Text style={styles.modalRef} testID="context-ref">{contextData.reference}</Text>
-                <Text style={styles.modalContext} testID="context-text">
-                  {contextData.context_text}
-                </Text>
+                <Text style={styles.modalRef}>{contextData.reference}</Text>
+                <Text style={styles.modalContext}>{contextData.context_text}</Text>
+              </>
+            )}
+
+            {sheet === 'explanation' && deeperData && (
+              <>
+                <Text style={styles.modalRef}>{deeperData.reference}</Text>
+                <Text style={styles.modalContext}>{deeperData.explanation}</Text>
+              </>
+            )}
+
+            {sheet === 'related' && relatedItems.length > 0 && (
+              <>
+                {relatedItems.map((it, idx) => (
+                  <View key={`${it.reference}-${idx}`} style={styles.relatedCard}>
+                    <Text style={styles.relatedRef}>{it.reference}</Text>
+                    <Text style={styles.relatedVerse}>{it.verse_text}</Text>
+                    <Text style={styles.relatedNote}>{it.note}</Text>
+                  </View>
+                ))}
               </>
             )}
           </ScrollView>
@@ -374,23 +417,7 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 24, paddingBottom: 60 },
   header: { paddingTop: 16, marginBottom: 28 },
   greeting: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary, letterSpacing: 0.3 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  brand: { fontFamily: fonts.serifBold, fontSize: 28, color: colors.textPrimary, letterSpacing: -0.5, flex: 1 },
-  quotaPill: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.pill,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quotaPillPremium: { backgroundColor: colors.interactive, borderColor: colors.interactive },
-  quotaText: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 11,
-    color: colors.textSecondary,
-    letterSpacing: 0.3,
-  },
+  brand: { fontFamily: fonts.serifBold, fontSize: 28, color: colors.textPrimary, letterSpacing: -0.5, marginTop: 2 },
   dailyCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.card,
@@ -411,7 +438,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -0.5,
   },
-  promptHelp: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 23, color: colors.textSecondary, marginTop: 12, marginBottom: 18 },
+  promptHelp: { fontFamily: fonts.sans, fontSize: 15, lineHeight: 23, color: colors.textSecondary, marginTop: 22, marginBottom: 14 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 22 },
   chip: {
     paddingHorizontal: 14,
@@ -451,30 +478,33 @@ const styles = StyleSheet.create({
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 28 },
   explanationLabel: { fontFamily: fonts.sansSemi, fontSize: 10, letterSpacing: 2.5, color: colors.accent, marginBottom: 12 },
   explanation: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 27, color: colors.interactive },
-  contextBtn: {
-    marginTop: 20,
+  actionGrid: {
+    marginTop: 24,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    borderRadius: radii.pill,
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  actionTile: {
+    flexBasis: '48%',
+    flexGrow: 1,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-  },
-  contextBtnText: { fontFamily: fonts.sansMedium, fontSize: 14, color: colors.textPrimary },
-  lockTag: {
-    marginLeft: 6,
+    borderRadius: radii.card,
+    paddingVertical: 18,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.textPrimary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radii.pill,
+    gap: 12,
+    minHeight: 72,
   },
-  lockTagText: { fontFamily: fonts.sansSemi, fontSize: 9, letterSpacing: 1, color: colors.bg },
+  actionTileText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textPrimary,
+    flexShrink: 1,
+  },
   actions: { flexDirection: 'row', gap: 12, marginTop: 18 },
   favBtn: {
     flex: 1,
@@ -500,13 +530,6 @@ const styles = StyleSheet.create({
     borderColor: colors.textPrimary,
   },
   favBtnText: { fontFamily: fonts.sansMedium, color: colors.textPrimary, fontSize: 15 },
-  newBtn: {
-    marginTop: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-  },
-  newBtnText: { fontFamily: fonts.sansMedium, color: colors.textSecondary, fontSize: 15 },
   toast: {
     position: 'absolute',
     bottom: 12,
@@ -534,4 +557,12 @@ const styles = StyleSheet.create({
   modalLoading: { fontFamily: fonts.sans, color: colors.textSecondary, marginTop: 16 },
   modalRef: { fontFamily: fonts.sansSemi, fontSize: 13, letterSpacing: 1.5, color: colors.accent, marginBottom: 16 },
   modalContext: { fontFamily: fonts.serif, fontSize: 19, lineHeight: 30, color: colors.textPrimary },
+  relatedCard: {
+    paddingVertical: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  relatedRef: { fontFamily: fonts.sansSemi, fontSize: 12, letterSpacing: 1.5, color: colors.accent, marginBottom: 8 },
+  relatedVerse: { fontFamily: fonts.serif, fontSize: 18, lineHeight: 28, color: colors.textPrimary },
+  relatedNote: { fontFamily: fonts.sans, fontSize: 14, fontStyle: 'italic', color: colors.textSecondary, marginTop: 8, lineHeight: 20 },
 });

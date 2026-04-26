@@ -11,18 +11,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import {
   LogOut,
   Bell,
   Heart,
   BookOpen,
-  Sparkles,
-  Crown,
   Check,
-  ExternalLink,
 } from 'lucide-react-native';
-import * as WebBrowser from 'expo-web-browser';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../src/AuthContext';
 import { api, formatError } from '../../src/api';
@@ -43,13 +38,11 @@ const TRANSLATION_LABEL: Record<Translation, string> = {
 };
 
 export default function Settings() {
-  const router = useRouter();
   const { user, logout, refreshUser } = useAuth();
   const [dailyOn, setDailyOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [translationBusy, setTranslationBusy] = useState(false);
   const [translationError, setTranslationError] = useState('');
-  const [portalBusy, setPortalBusy] = useState(false);
 
   // Restore daily-notification toggle state on mount
   useEffect(() => {
@@ -60,30 +53,6 @@ export default function Settings() {
       } catch {}
     })();
   }, []);
-
-  const onManageSubscription = async () => {
-    if (!user?.is_premium) {
-      router.push('/paywall');
-      return;
-    }
-    setPortalBusy(true);
-    try {
-      const origin = Platform.OS === 'web'
-        ? (globalThis as any).location.origin
-        : process.env.EXPO_PUBLIC_BACKEND_URL;
-      const res = await api.post('/subscription/portal', { origin_url: origin });
-      const url: string = res.data.url;
-      if (Platform.OS === 'web') {
-        (globalThis as any).location.href = url;
-      } else {
-        await WebBrowser.openBrowserAsync(url);
-      }
-    } catch (e: any) {
-      Alert.alert('Could not open billing portal', formatError(e));
-    } finally {
-      setPortalBusy(false);
-    }
-  };
 
   const onConfirmLogout = () => {
     if (Platform.OS === 'web') {
@@ -98,7 +67,6 @@ export default function Settings() {
 
   const onToggleDaily = async (value: boolean) => {
     if (Platform.OS === 'web') {
-      // Local notifications aren't reliable on web; just inform the user.
       Alert.alert?.(
         'Use the mobile app',
         'Daily verse reminders are delivered through the mobile app. Open Verse for That on your phone to enable.'
@@ -114,9 +82,7 @@ export default function Settings() {
           setDailyOn(false);
           return;
         }
-        // Cancel any prior reminders so we never stack duplicates
         await Notifications.cancelAllScheduledNotificationsAsync();
-
         const id = await Notifications.scheduleNotificationAsync({
           content: {
             title: 'A verse for today 🌅',
@@ -159,23 +125,6 @@ export default function Settings() {
     }
   };
 
-  const planLabel = (() => {
-    if (!user) return '';
-    if (user.subscription_status === 'trialing') {
-      const end = user.current_period_end ? new Date(user.current_period_end) : null;
-      return end ? `Trial · ends ${end.toLocaleDateString()}` : 'Free trial active';
-    }
-    if (user.subscription_status === 'active') {
-      const end = user.current_period_end ? new Date(user.current_period_end) : null;
-      const renewLabel = (user as any).cancel_at_period_end ? 'ends' : 'renews';
-      return end ? `Premium · ${renewLabel} ${end.toLocaleDateString()}` : 'Premium';
-    }
-    if (user.subscription_status === 'past_due') {
-      return 'Premium · payment past due';
-    }
-    return `Free · ${user.free_verses_remaining} of 3 verses left`;
-  })();
-
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -195,51 +144,6 @@ export default function Settings() {
             <Text style={styles.profileName}>{user?.name || 'Friend'}</Text>
             <Text style={styles.profileEmail}>{user?.email}</Text>
           </View>
-        </View>
-
-        {/* Subscription card */}
-        <Text style={styles.sectionLabel}>SUBSCRIPTION</Text>
-        <View
-          style={[styles.subCard, user?.is_premium && styles.subCardPremium]}
-          testID="subscription-card"
-        >
-          <View style={styles.subRow}>
-            <View style={[styles.subIcon, user?.is_premium && { backgroundColor: colors.bg }]}>
-              {user?.is_premium ? (
-                <Crown size={18} color={colors.interactive} strokeWidth={1.6} fill={colors.interactive} />
-              ) : (
-                <Sparkles size={18} color={colors.bg} strokeWidth={1.6} />
-              )}
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.subPlan, user?.is_premium && { color: colors.bg }]}>
-                {user?.is_premium ? 'Verse for That Premium' : 'Free plan'}
-              </Text>
-              <Text style={[styles.subStatus, user?.is_premium && { color: 'rgba(250,249,246,0.85)' }]}>
-                {planLabel}
-              </Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            style={[styles.subBtn, user?.is_premium && styles.subBtnLight, portalBusy && { opacity: 0.6 }]}
-            onPress={onManageSubscription}
-            disabled={portalBusy}
-            testID="manage-subscription-btn"
-            activeOpacity={0.85}
-          >
-            {portalBusy ? (
-              <ActivityIndicator color={user?.is_premium ? colors.textPrimary : colors.bg} />
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text style={[styles.subBtnText, user?.is_premium && { color: colors.textPrimary }]}>
-                  {user?.is_premium ? 'Manage subscription' : 'Upgrade · 7-day free trial'}
-                </Text>
-                {user?.is_premium && (
-                  <ExternalLink size={14} color={colors.textPrimary} strokeWidth={1.6} />
-                )}
-              </View>
-            )}
-          </TouchableOpacity>
         </View>
 
         {/* Bible translation */}
@@ -354,31 +258,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 12,
   },
-  subCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.card,
-    padding: 20,
-    marginBottom: 28,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  subCardPremium: { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary },
-  subRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
-  subIcon: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: colors.textPrimary,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  subPlan: { fontFamily: fonts.serifBold, fontSize: 20, color: colors.textPrimary },
-  subStatus: { fontFamily: fonts.sans, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
-  subBtn: {
-    backgroundColor: colors.textPrimary,
-    borderRadius: radii.pill,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  subBtnLight: { backgroundColor: colors.bg },
-  subBtnText: { color: colors.bg, fontFamily: fonts.sansMedium, fontSize: 14, letterSpacing: 0.3 },
   transWrap: { marginBottom: 28 },
   transRow: {
     backgroundColor: colors.surface,

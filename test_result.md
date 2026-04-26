@@ -102,52 +102,95 @@
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
 
+
 user_problem_statement: |
-  Bible-verse companion app "Verse for That". Latest user requests:
-  1) Move clickable problem topics (chips) to BELOW the text input so user sees the box first.
-  2) Helper line should read: "Tap one of the options below or describe it in your own words."
-  3) Daily verse notification: enable scheduling at 8 AM (morning default).
-  4) Polish the "Read more context" button (already wired to /api/verses/{id}/context).
-
-frontend:
-  - task: "Reorder home: text box first, chips below with new helper copy"
-    implemented: true
-    working: "NA"
-    file: "frontend/app/(tabs)/index.tsx"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Moved TextInput + Find-my-verse button above chips. Helper text now: 'Tap one of the options below or describe it in your own words.' Verified visually via screenshot — layout renders correctly on 390x844 mobile viewport."
-
-  - task: "Daily verse notification at 8 AM with persisted toggle"
-    implemented: true
-    working: "NA"
-    file: "frontend/app/(tabs)/settings.tsx, frontend/app/_layout.tsx"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-        -working: "NA"
-        -agent: "main"
-        -comment: "Added Notifications.setNotificationHandler in _layout.tsx for foreground alerts. settings.tsx now restores toggle state from storage on mount, persists ON/OFF, schedules a DAILY trigger (hour=8, minute=0) via SchedulableTriggerInputTypes.DAILY, and gracefully handles web (where local notifications aren't reliable). Cancels prior notifications to prevent duplicates."
-
-  - task: "'Read more context' premium UI"
-    implemented: true
-    working: true
-    file: "frontend/app/(tabs)/index.tsx"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-        -working: true
-        -agent: "main"
-        -comment: "Already implemented in earlier session: BookOpen-iconed pill button below verse, opens pageSheet modal, fetches /api/verses/{id}/context, gates non-premium users to paywall with PREMIUM lock tag. Backend confirmed in logs (200 OK for context endpoint)."
+  Bible-verse app "Verse for That" major refactor:
+  1) Remove ALL payment / paywall / Stripe / free-trial / free-verse-limit logic. App will be sold via App Store + Google Play at $4.99.
+  2) After a verse result, show 4 actions and build them all out:
+     - Read more context  (existing)
+     - Deeper explanation  (NEW endpoint /api/verses/{id}/explanation)
+     - Other relatable verses  (NEW endpoint /api/verses/{id}/related)
+     - Search again  (resets the home screen)
+  3) Variety: each problem search must return a fresh verse, not the same one repeatedly.
+  4) Add a Bible verse search feature — by reference (e.g. "John 3:16") or topic (e.g. "love"). NEW endpoint /api/verses/search and a new "Search" tab.
 
 backend:
-  - task: "/api/verses/{id}/context endpoint (premium-gated)"
+  - task: "Strip Stripe / subscription / free-tier from server.py"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Removed all Stripe SDK usage, subscription routes (/api/subscription/*), Stripe webhook, paywall gating in /api/verses/match (no more 402), and premium gate in /api/verses/{id}/context. UserResponse trimmed to id/email/name/bible_translation. STRIPE_API_KEY no longer required at startup."
+        -working: true
+        -agent: "testing"
+        -comment: "VERIFIED. /api/subscription/checkout, /api/subscription/portal, /api/webhook/stripe all return 404. /api/verses/match never returns 402 (tested 5+ calls). UserResponse from signup/login/me has exactly {id, email, name, bible_translation} — no is_premium / verses_used / free_verses_remaining / subscription_status fields. /api/verses/{id}/context works for any authenticated user."
+
+  - task: "POST /api/verses/match — variety-aware (no repeats)"
+    implemented: true
+    working: false
+    file: "backend/server.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Pulls last 10 references from this user's history and tells Claude in the system prompt to avoid them. Salts the LlmChat session_id with a fresh uuid for each call so requests are independent. Verify by calling twice with the same problem and confirming different references are returned."
+        -working: false
+        -agent: "testing"
+        -comment: "VARIETY LOGIC WORKS, BUT ENDPOINT IS UNRELIABLE. Calling /verses/match repeatedly with the SAME problem ('I feel anxious about the future') yields a different reference each time WHEN it succeeds (observed: Matthew 6:34, Proverbs 3:5-6, Isaiah 41:10 — all distinct). However ~60% of repeat calls return HTTP 500 with backend log: 'Verse match failed: Expecting , delimiter: line 3 column 56 (char 90)'. Root cause: Claude's JSON output occasionally contains an unescaped double-quote (likely inside verse_text), and json.loads(strip_json_fences(response)) crashes. There is no retry / json-repair / fallback path. So the variety FEATURE is correct, but reliability of the endpoint itself is the blocker. Recommend adding either (a) a single retry with a stricter system prompt, (b) a json-repair pass (e.g. swap straight quotes inside string values, or use json.JSONDecoder with raw_decode), or (c) request Claude in JSON-mode if the SDK supports it."
+
+  - task: "GET /api/verses/{id}/explanation — deeper explanation"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoint. Looks up the user's prior match, asks Claude for a 6-9 sentence pastoral reflection covering historical context, original meaning, traditional Christian reading, application to user's struggle, and gentle practical takeaway. Returns {reference, explanation}."
+        -working: true
+        -agent: "testing"
+        -comment: "PASS. Returned {reference: 'Matthew 6:34', explanation: 1281-char multi-sentence reflection with 8 sentence terminators}. Bogus id correctly returns 404. Shape matches DeeperExplanation model."
+
+  - task: "GET /api/verses/{id}/related — 4 related verses"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoint. Returns 4 thematically related verses (different from the original) with note explaining the connection. Excludes the original reference. Uses uuid-salted session id for variety."
+        -working: true
+        -agent: "testing"
+        -comment: "PASS. Returned 4 items for original 'Matthew 6:34': Philippians 4:6-7, Psalm 37:5, 1 Peter 5:7, Proverbs 3:5-6. None equals the original reference. Each item has reference/verse_text/note. Meets >=2 items requirement comfortably."
+
+  - task: "POST /api/verses/search — Bible search by reference or topic"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "New endpoint. Accepts {query} (1-200 chars). Claude returns up to 5 items (or the exact verse if the query is a reference) as {items: [{reference, verse_text, note}]}. Authenticated, uses user's translation."
+        -working: true
+        -agent: "testing"
+        -comment: "PASS. Reference query 'John 3:16' -> 1 item, reference exactly 'John 3:16'. Topic query 'love' -> 5 items: 1 Corinthians 13:4-7, John 3:16, 1 John 4:8, Romans 8:38-39, John 15:13. Response shape {query, items:[{reference,verse_text,note}]} as documented."
+
+  - task: "Regression — auth/me, settings/translation, history, favorites, tts, daily-verse"
     implemented: true
     working: true
     file: "backend/server.py"
@@ -156,23 +199,86 @@ backend:
     needs_retesting: false
     status_history:
         -working: true
+        -agent: "testing"
+        -comment: "All regression endpoints PASS. /api/auth/me returns trimmed UserResponse. PATCH /api/settings/translation switches to KJV and back to NIV correctly. /api/history returns list of past matches. POST/GET/DELETE /api/favorites all work (add, list, delete). /api/tts/generate returns 45KB+ base64 mp3. /api/daily-verse returns valid {reference, verse_text, explanation, date} (Psalm 118:24)."
+
+frontend:
+  - task: "Remove paywall.tsx, subscription/* routes, premium UI"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/, frontend/src/api.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
         -agent: "main"
-        -comment: "Endpoint already verified working from previous iteration logs (200 OK for premium, 402 for free)."
+        -comment: "Deleted /app/paywall.tsx and the /app/subscription/ folder. Stripped is_premium / verses_used / free_verses_remaining / subscription_status from User type and from settings/home UI. Quota pill, subscription card, paywall navigation all gone."
+
+  - task: "Home: 4-action grid after a verse"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Result screen now shows a 2x2 grid of action tiles: Read more context, Deeper explanation, Other relatable verses, Search again. Tapping any of the first three opens a single shared bottom-sheet modal that loads from the appropriate endpoint. Save / Share buttons remain underneath."
+
+  - task: "New Search tab — /api/verses/search"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/search.tsx, frontend/app/(tabs)/_layout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Added a 5th 'Search' tab between Home and Saved. Has a SearchIcon-prefixed text input, suggestion chips (John 3:16, Psalm 23, Romans 8:28, love, anxiety, forgiveness), and renders results in cards with reference / verse text / note."
 
 metadata:
   created_by: "main_agent"
-  version: "1.2"
-  test_sequence: 6
+  version: "2.0"
+  test_sequence: 7
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Reorder home: text box first, chips below with new helper copy"
-    - "Daily verse notification at 8 AM with persisted toggle"
+    - "POST /api/verses/match — variety-aware (no repeats)"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
 
 agent_communication:
     -agent: "main"
-    -message: "Three small UX changes: (1) Home screen now shows the text box and 'Find my verse' button before the suggestion chips, with refreshed helper text. (2) Daily verse reminder is fully wired: foreground notification handler in _layout, persistent toggle in Settings using existing storage shim, DAILY trigger at 8 AM. (3) Read more context UI confirmed working from prior testing. No backend changes — only frontend. Web preview verified visually."
+    -message: "Major backend + frontend refactor. Payment stack fully removed (no Stripe, no paywall, no quota). Three NEW backend endpoints (deeper explanation, related verses, search) plus updated /verses/match that avoids the user's last 10 references. Frontend now has a 4-action result tile grid and a new 'Search' tab. Please test the four backend tasks under test_plan, especially: (a) match endpoint NO LONGER returns 402, (b) calling /verses/match twice in a row with the same problem returns DIFFERENT references, (c) explanation/related/search endpoints return well-formed JSON shapes. Use existing creds in /app/memory/test_credentials.md (test@hisword.com / faith123)."
+    -agent: "testing"
+    -message: |
+      Backend tested via /app/backend_test.py against https://verse-match-5.preview.emergentagent.com/api. 22/23 checks pass.
+
+      ✅ CONFIRMED WORKING:
+        - Auth signup, login, /me all return UserResponse with ONLY {id, email, name, bible_translation} — no premium fields. Signup of a brand-new user verified.
+        - /api/verses/match never returns 402 (verified across many calls). Response shape correct: {id, problem, reference, verse_text, explanation, created_at}.
+        - Variety LOGIC works: when /verses/match calls succeed, repeated calls with the SAME problem return DIFFERENT references (Matthew 6:34, Proverbs 3:5-6, Isaiah 41:10 — all distinct).
+        - /api/verses/{id}/context: works for any authenticated user, returns {reference, context_text}.
+        - /api/verses/{id}/explanation: NEW — returns {reference, explanation} with multi-sentence reflection (~1.2KB, 8 sentences). Bogus id correctly 404s.
+        - /api/verses/{id}/related: NEW — returns 4 distinct items, none equals original reference.
+        - /api/verses/search 'John 3:16' returns the exact verse; 'love' returns 5 themed verses.
+        - Removed endpoints (/api/subscription/checkout, /api/subscription/portal, /api/webhook/stripe) all return 404.
+        - Regression: /auth/me, PATCH /settings/translation, /history, POST/GET/DELETE /favorites, /tts/generate (45KB mp3 b64), /daily-verse — all PASS.
+
+      ❌ ONE CRITICAL RELIABILITY ISSUE:
+        /api/verses/match has a ~60% intermittent 500-error rate. Backend log: "Verse match failed: Expecting ',' delimiter: line 3 column 56 (char 90)". Root cause: Claude occasionally emits unescaped double-quotes inside verse_text (Bible verses often contain quoted speech, e.g. "I am the Lord"), and json.loads(strip_json_fences(...)) fails. The same defect technically affects /context, /explanation, /related, /search, and /daily-verse since they share _claude_json with no retry/repair.
+
+        Recommended fixes (main agent — DO NOT have testing fix this):
+          1. Wrap _claude_json in a 1-2 retry loop on JSONDecodeError with a fresh session_id.
+          2. Add a json-repair fallback (regex extract first {...} block, or use a `json5` / `json-repair` library).
+          3. Strengthen system prompts to instruct Claude to escape any internal quotes (\\") inside string values.
+
+        Variety enforcement itself is correctly implemented; the failure is purely in JSON parsing reliability.
+
+      Action: main agent should harden _claude_json, then re-run /api/verses/match repeat test. No frontend testing performed.
+
