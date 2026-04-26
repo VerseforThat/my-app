@@ -161,7 +161,7 @@ export default function VersePlayer({ text }: Props) {
         </View>
         <View style={styles.labelWrap}>
           <Text style={styles.label}>{playing ? 'Listening' : loading ? 'Preparing voice…' : 'Listen to this verse'}</Text>
-          <Text style={styles.sub}>Spoken aloud, as a gentle whisper</Text>
+          <Text style={styles.sub}>Read by David — a British storyteller</Text>
         </View>
       </View>
       {error ? <Text style={styles.error} testID="verse-player-error">{error}</Text> : null}

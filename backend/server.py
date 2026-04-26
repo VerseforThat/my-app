@@ -34,8 +34,8 @@ ELEVENLABS_API_KEY = os.environ['ELEVENLABS_API_KEY']
 JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 
-# Pre-selected serene female voice from ElevenLabs default voices
-DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL"  # Sarah - calm, warm
+# David - British Radio Host & Storyteller
+DEFAULT_VOICE_ID = "5gLuKtB16QIQv1vuSas1"
 
 eleven_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
