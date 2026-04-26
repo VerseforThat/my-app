@@ -208,7 +208,7 @@ backend:
 frontend:
   - task: "Remove paywall.tsx, subscription/* routes, premium UI"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/app/, frontend/src/api.ts"
     stuck_count: 0
     priority: "high"
@@ -217,10 +217,49 @@ frontend:
         -working: "NA"
         -agent: "main"
         -comment: "Deleted /app/paywall.tsx and the /app/subscription/ folder. Stripped is_premium / verses_used / free_verses_remaining / subscription_status from User type and from settings/home UI. Quota pill, subscription card, paywall navigation all gone."
+        -working: true
+        -agent: "testing"
+        -comment: "VERIFIED on web preview at 390x844. No quota pill, no 'free verses left' text, no 'Upgrade' button, no 'Free plan' card, no 'Subscription' / 'Manage subscription' anywhere on Home or Settings. Settings page contains Profile card + NIV/KJV picker + daily-notification toggle + Sign-out only — no payment surfaces."
+
+  - task: "Welcome screen + auth flow (login)"
+    implemented: true
+    working: true
+    file: "frontend/app/(auth)/welcome.tsx, login.tsx, signup.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "Welcome subtitle reads exactly 'Quick answers for life's everyday struggles. Receive the verse meant for this moment.' Login with test@hisword.com / faith123 succeeds and lands on Home tab."
+
+  - task: "Home input layout + suggestion chips"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "Home renders: title 'What's the problem you're trying to work through?', input with placeholder 'I feel overwhelmed by...', 'Find my verse' submit button, helper 'Tap one of the options below or describe it in your own words.', and ALL 5 chips (Fear of being alone, Financial stress, Low self-esteem, Depression, Questioning everything). No quota text."
+
+  - task: "Verse match flow"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "Submitting 'I feel anxious about the future' returns Matthew 6:34 with verse text, reference, 'A REFLECTION' label, multi-sentence reflection. VersePlayer ('Listen to this verse — Read by David — a British storyteller') visible. 4-action grid present (action-context, action-explanation, action-related, action-search-again). Save and Share buttons render. No 402."
 
   - task: "Home: 4-action grid after a verse"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/app/(tabs)/index.tsx"
     stuck_count: 0
     priority: "high"
@@ -228,11 +267,26 @@ frontend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Result screen now shows a 2x2 grid of action tiles: Read more context, Deeper explanation, Other relatable verses, Search again. Tapping any of the first three opens a single shared bottom-sheet modal that loads from the appropriate endpoint. Save / Share buttons remain underneath."
+        -comment: "Result screen now shows a 2x2 grid of action tiles: Read more context, Deeper explanation, Other relatable verses, Search again."
+        -working: true
+        -agent: "testing"
+        -comment: "All 4 actions verified: (a) 'Read more context' opens modal titled 'Surrounding Context' with Matthew 6:25-34 passage and bracketed verse numbers [25]…[34]. (b) 'Deeper explanation' opens modal 'Deeper Explanation' with multi-paragraph pastoral reflection. (c) 'Other relatable verses' opens modal 'Other Relatable Verses' with 3-4 cards (reference + verse text + italic note). (d) 'Search again' resets to input flow."
+
+  - task: "Variety check — different reference on repeat"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/index.tsx + backend"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "Submitted 'loneliness' twice in a row from the UI. First → Psalm 34:18, second → Isaiah 41:10. Different references confirmed; variety enforcement working end-to-end."
 
   - task: "New Search tab — /api/verses/search"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/app/(tabs)/search.tsx, frontend/app/(tabs)/_layout.tsx"
     stuck_count: 0
     priority: "high"
@@ -240,7 +294,34 @@ frontend:
     status_history:
         -working: "NA"
         -agent: "main"
-        -comment: "Added a 5th 'Search' tab between Home and Saved. Has a SearchIcon-prefixed text input, suggestion chips (John 3:16, Psalm 23, Romans 8:28, love, anxiety, forgiveness), and renders results in cards with reference / verse text / note."
+        -comment: "Added a 5th 'Search' tab between Home and Saved."
+        -working: true
+        -agent: "testing"
+        -comment: "Search tab present in bottom nav (5 tabs total in order: Home, Search, Saved, History, Settings). Title 'Look up a verse' renders. All 6 suggestion chips present (John 3:16, Psalm 23, Romans 8:28, love, anxiety, forgiveness). Tapping 'John 3:16' chip returns a result card with reference 'John 3:16'. Typing 'patience' and tapping Search returns multiple result cards (~1100 chars of results)."
+
+  - task: "Saved + History + Settings"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/favorites.tsx, history.tsx, settings.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "Save button on a verse result toggled from 'Save' to 'Saved' after click. Settings: profile card + NIV/KJV picker (translation-niv / translation-kjv testIDs) — toggling KJV then back to NIV worked (PATCH /settings/translation fired). Daily-notification toggle (setting-daily-notification) and logout-btn present. NO subscription/upgrade/manage-subscription surfaces. Saved + History tabs were navigable via bottom-nav role=tab; verse data persistence to those tabs not deeply asserted (focus was on UI presence + critical paywall removal)."
+
+  - task: "Responsive 360x800"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "testing"
+        -comment: "At 360x800 Home renders without horizontal overflow or clipping. Layout adapts cleanly."
 
 metadata:
   created_by: "main_agent"
@@ -249,8 +330,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "POST /api/verses/match — variety-aware (no repeats)"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
