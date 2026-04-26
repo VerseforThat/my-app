@@ -113,21 +113,21 @@ export default function Paywall() {
           {isFirstPayment ? (
             <View style={styles.breakdown}>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>7-day free trial</Text>
-                <Text style={styles.breakdownValueFree}>FREE</Text>
+                <Text style={styles.breakdownLabel}>Today</Text>
+                <Text style={styles.breakdownValueFree}>$0.00</Text>
               </View>
               <View style={styles.breakdownRow}>
-                <Text style={styles.breakdownLabel}>30 days of premium</Text>
-                <Text style={styles.breakdownValue}>$4.99</Text>
+                <Text style={styles.breakdownLabel}>After 7-day trial</Text>
+                <Text style={styles.breakdownValue}>$4.99 / month</Text>
               </View>
               <View style={styles.breakdownDivider} />
               <View style={styles.breakdownRow}>
-                <Text style={[styles.breakdownLabel, styles.breakdownTotal]}>37 days for your first payment</Text>
-                <Text style={[styles.breakdownValue, styles.breakdownTotal]}>$4.99</Text>
+                <Text style={[styles.breakdownLabel, styles.breakdownTotal]}>Auto-renews monthly</Text>
+                <Text style={[styles.breakdownValue, styles.breakdownTotal]}>Cancel anytime</Text>
               </View>
             </View>
           ) : (
-            <Text style={styles.priceNote}>Each payment extends premium 30 days. Renew when ready — no auto-charge.</Text>
+            <Text style={styles.priceNote}>Auto-renews $4.99 every month. Cancel anytime in Manage subscription.</Text>
           )}
         </View>
 
@@ -146,7 +146,7 @@ export default function Paywall() {
             <>
               <Lock size={14} color={colors.bg} strokeWidth={1.8} />
               <Text style={styles.primaryBtnText}>
-                {isFirstPayment ? 'Start 7-day free trial · $4.99' : 'Renew · $4.99 for 30 days'}
+                {isFirstPayment ? 'Start 7-day free trial' : 'Resubscribe · $4.99/month'}
               </Text>
             </>
           )}
@@ -159,8 +159,8 @@ export default function Paywall() {
 
         <Text style={styles.fineprint}>
           {isFirstPayment
-            ? "Your $4.99 covers 37 days total — your first 7 are on us. After that, each $4.99 payment extends premium 30 days. No auto-renewal — you choose when to renew."
-            : "Each payment extends your premium access by 30 days. We'll never auto-charge — you renew when it's right for you."}
+            ? "Card required. $0 charged for the first 7 days. After that, $4.99 auto-renews monthly. Cancel anytime in Manage subscription — no charge if you cancel before Day 8."
+            : "Your subscription auto-renews $4.99 every month. Cancel or update your card anytime via Manage subscription."}
         </Text>
       </ScrollView>
     </SafeAreaView>

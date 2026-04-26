@@ -711,7 +711,12 @@ async def stripe_webhook(request: Request):
             raise HTTPException(status_code=400, detail="Invalid payload")
 
     event_type = event["type"]
-    obj = event["data"]["object"]
+    raw_obj = event["data"]["object"]
+    # Deep-convert StripeObject to plain dict so chained .get works on nested fields
+    try:
+        obj = json.loads(json.dumps(raw_obj, default=str))
+    except Exception:
+        obj = dict(raw_obj) if hasattr(raw_obj, "keys") else {}
     logger.info(f"Stripe webhook: {event_type}")
 
     try:
@@ -719,184 +724,48 @@ async def stripe_webhook(request: Request):
             user_id = (obj.get("metadata") or {}).get("user_id")
             sub_id = obj.get("subscription")
             if user_id and sub_id:
-                sub = await asyncio.to_thread(lambda: stripe.Subscription.retrieve(sub_id))
-                await _apply_subscription_to_user(user_id, sub.to_dict() if hasattr(sub, "to_dict") else dict(sub))
+                sub_obj = await asyncio.to_thread(lambda: stripe.Subscription.retrieve(sub_id))
+                sub_dict = json.loads(json.dumps(sub_obj, default=str))
+                await _apply_subscription_to_user(user_id, sub_dict)
                 await db.users.update_one({"id": user_id}, {"$set": {"first_payment_done": True}})
 
         elif event_type in ("customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"):
             user_id = (obj.get("metadata") or {}).get("user_id")
             if not user_id:
-                # try to find by customer id
                 cust_id = obj.get("customer")
-                user = await db.users.find_one({"stripe_customer_id": cust_id}, {"_id": 0, "id": 1})
-                user_id = user["id"] if user else None
+                if cust_id:
+                    user = await db.users.find_one({"stripe_customer_id": cust_id}, {"_id": 0, "id": 1})
+                    user_id = user["id"] if user else None
             if user_id:
-                sub_dict = obj if isinstance(obj, dict) else dict(obj)
                 if event_type == "customer.subscription.deleted":
-                    sub_dict["status"] = "canceled"
-                await _apply_subscription_to_user(user_id, sub_dict)
+                    obj["status"] = "canceled"
+                await _apply_subscription_to_user(user_id, obj)
 
         elif event_type == "invoice.payment_failed":
             cust_id = obj.get("customer")
-            user = await db.users.find_one({"stripe_customer_id": cust_id}, {"_id": 0, "id": 1})
-            if user:
-                await db.users.update_one({"id": user["id"]}, {"$set": {"subscription_status": "past_due"}})
+            if cust_id:
+                user = await db.users.find_one({"stripe_customer_id": cust_id}, {"_id": 0, "id": 1})
+                if user:
+                    await db.users.update_one({"id": user["id"]}, {"$set": {"subscription_status": "past_due"}})
+
+        elif event_type == "invoice.paid":
+            cust_id = obj.get("customer")
+            sub_id = obj.get("subscription")
+            if sub_id:
+                sub_obj = await asyncio.to_thread(lambda: stripe.Subscription.retrieve(sub_id))
+                sub_dict = json.loads(json.dumps(sub_obj, default=str))
+                user_id = (sub_dict.get("metadata") or {}).get("user_id")
+                if not user_id and cust_id:
+                    user = await db.users.find_one({"stripe_customer_id": cust_id}, {"_id": 0, "id": 1})
+                    user_id = user["id"] if user else None
+                if user_id:
+                    await _apply_subscription_to_user(user_id, sub_dict)
     except Exception as e:
-        logger.error(f"Webhook handler error: {e}")
+        logger.error(f"Webhook handler error: {e}", exc_info=True)
 
     return {"received": True}
 
 
-@api_router.post("/subscription/checkout")
-async def create_subscription_checkout(
-    payload: CheckoutRequest, http_request: Request, current_user: dict = Depends(get_current_user)
-):
-    host_url = str(http_request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-
-    origin = payload.origin_url.rstrip("/")
-    success_url = f"{origin}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}"
-    cancel_url = f"{origin}/subscription/cancel"
-
-    # First payment grants 7 free trial days on top of the 30 paid days.
-    is_first_payment = not current_user.get("first_payment_done", False)
-    days_granted = FIRST_PAYMENT_DAYS if is_first_payment else SUBSCRIPTION_DAYS
-
-    request = CheckoutSessionRequest(
-        amount=SUBSCRIPTION_PRICE_USD,
-        currency="usd",
-        success_url=success_url,
-        cancel_url=cancel_url,
-        metadata={
-            "user_id": current_user["id"],
-            "email": current_user["email"],
-            "plan": "monthly_4_99",
-            "days_granted": str(days_granted),
-            "is_first_payment": "true" if is_first_payment else "false",
-        },
-    )
-    session = await stripe_checkout.create_checkout_session(request)
-
-    await db.payment_transactions.insert_one({
-        "id": str(uuid.uuid4()),
-        "session_id": session.session_id,
-        "user_id": current_user["id"],
-        "email": current_user["email"],
-        "amount": SUBSCRIPTION_PRICE_USD,
-        "currency": "usd",
-        "metadata": {
-            "plan": "monthly_4_99",
-            "days_granted": days_granted,
-            "is_first_payment": is_first_payment,
-        },
-        "payment_status": "initiated",
-        "status": "pending",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    })
-
-    return {"url": session.url, "session_id": session.session_id, "days_granted": days_granted}
-
-
-async def _grant_premium_for_user(user_id: str, days: int) -> None:
-    user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if not user:
-        return
-    # Extend from later of (now, current_period_end)
-    now = datetime.now(timezone.utc)
-    base = now
-    cpe = user.get("current_period_end")
-    if cpe:
-        try:
-            cpe_dt = datetime.fromisoformat(cpe)
-            if cpe_dt > now:
-                base = cpe_dt
-        except Exception:
-            pass
-    new_end = (base + timedelta(days=days)).isoformat()
-    await db.users.update_one(
-        {"id": user_id},
-        {"$set": {
-            "subscription_status": "active",
-            "current_period_end": new_end,
-            "first_payment_done": True,
-        }},
-    )
-
-
-@api_router.get("/subscription/status/{session_id}")
-async def check_subscription_status(session_id: str, http_request: Request, current_user: dict = Depends(get_current_user)):
-    txn = await db.payment_transactions.find_one({"session_id": session_id, "user_id": current_user["id"]}, {"_id": 0})
-    if not txn:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-
-    # Already processed?
-    if txn.get("payment_status") == "paid":
-        user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password_hash": 0})
-        return {"payment_status": "paid", "status": "complete", "user": serialize_user(user).dict()}
-
-    host_url = str(http_request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-
-    try:
-        status = await stripe_checkout.get_checkout_status(session_id)
-        new_payment_status = status.payment_status
-        new_status = status.status
-    except Exception as e:
-        logger.warning(f"Stripe status lookup failed for {session_id}: {e}")
-        user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password_hash": 0})
-        return {
-            "payment_status": txn.get("payment_status", "pending"),
-            "status": txn.get("status", "pending"),
-            "user": serialize_user(user).dict(),
-        }
-
-    update = {"$set": {"payment_status": new_payment_status, "status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}}
-    await db.payment_transactions.update_one({"session_id": session_id}, update)
-
-    # Grant access exactly once
-    if new_payment_status == "paid" and txn.get("payment_status") != "paid":
-        days = int(txn.get("metadata", {}).get("days_granted", SUBSCRIPTION_DAYS))
-        await _grant_premium_for_user(current_user["id"], days)
-
-    user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password_hash": 0})
-    return {"payment_status": new_payment_status, "status": new_status, "user": serialize_user(user).dict()}
-
-
-@api_router.post("/webhook/stripe")
-async def stripe_webhook(request: Request):
-    body = await request.body()
-    signature = request.headers.get("Stripe-Signature", "")
-    host_url = str(request.base_url).rstrip("/")
-    webhook_url = f"{host_url}/api/webhook/stripe"
-    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-    try:
-        event = await stripe_checkout.handle_webhook(body, signature)
-    except Exception as e:
-        logger.error(f"Webhook parse failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid webhook")
-
-    session_id = event.session_id
-    payment_status = event.payment_status
-    metadata = event.metadata or {}
-
-    if session_id:
-        await db.payment_transactions.update_one(
-            {"session_id": session_id},
-            {"$set": {"payment_status": payment_status, "webhook_event": event.event_type, "updated_at": datetime.now(timezone.utc).isoformat()}},
-        )
-        # Grant if paid and not already granted
-        if payment_status == "paid":
-            txn = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
-            user_id = (txn or {}).get("user_id") or metadata.get("user_id")
-            if user_id and (txn or {}).get("granted") is not True:
-                days = int(metadata.get("days_granted", SUBSCRIPTION_DAYS))
-                await _grant_premium_for_user(user_id, days)
-                await db.payment_transactions.update_one(
-                    {"session_id": session_id}, {"$set": {"granted": True}}
-                )
-    return {"received": True}
 
 
 # ---------------- Health ----------------
