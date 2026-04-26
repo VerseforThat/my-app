@@ -201,14 +201,131 @@ def strip_json_fences(text: str) -> str:
     return text
 
 
-async def _claude_json(system_message: str, user_text: str, session_id: str) -> dict:
-    chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
-        session_id=session_id,
-        system_message=system_message,
-    ).with_model("anthropic", "claude-sonnet-4-5-20250929")
-    response = await chat.send_message(UserMessage(text=user_text))
-    return json.loads(strip_json_fences(response))
+def _extract_first_json_object(text: str) -> Optional[str]:
+    """Find the first balanced {...} block in text."""
+    start = text.find("{")
+    if start == -1:
+        return None
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            continue
+        if c == '"':
+            in_str = True
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    return None
+
+
+def _try_repair_json(text: str) -> Optional[dict]:
+    """Best-effort recovery when Claude emits unescaped " inside string values."""
+    block = _extract_first_json_object(text)
+    if not block:
+        return None
+    # Try as-is first
+    try:
+        return json.loads(block)
+    except Exception:
+        pass
+    # Try the json_repair library (lightweight, no side-effects)
+    try:
+        import json_repair  # type: ignore
+        repaired = json_repair.loads(block)
+        if isinstance(repaired, dict):
+            return repaired
+    except Exception:
+        pass
+    # Last resort: collapse runs of internal straight quotes inside values.
+    # Replace any " that is NOT a key delimiter or value delimiter with a curly quote.
+    # Heuristic: a structural " is preceded by `:`, `,`, `{`, `[`, or whitespace adjacent to those.
+    # Anything else inside a string we replace with U+201D.
+    try:
+        out = []
+        in_str = False
+        esc = False
+        prev_struct = ""
+        i = 0
+        s = block
+        while i < len(s):
+            c = s[i]
+            if not in_str:
+                out.append(c)
+                if c == '"':
+                    in_str = True
+                elif c not in (" ", "\t", "\n", "\r"):
+                    prev_struct = c
+                i += 1
+                continue
+            # in string
+            if esc:
+                out.append(c)
+                esc = False
+                i += 1
+                continue
+            if c == "\\":
+                out.append(c)
+                esc = True
+                i += 1
+                continue
+            if c == '"':
+                # Decide: closing quote? Lookahead — next non-space char should be , } ] :
+                j = i + 1
+                while j < len(s) and s[j] in (" ", "\t", "\n", "\r"):
+                    j += 1
+                if j >= len(s) or s[j] in (",", "}", "]", ":"):
+                    out.append(c)
+                    in_str = False
+                else:
+                    # stray quote inside string — escape it
+                    out.append("\\\"")
+                i += 1
+                continue
+            out.append(c)
+            i += 1
+        return json.loads("".join(out))
+    except Exception:
+        return None
+
+
+async def _claude_json(system_message: str, user_text: str, session_id: str, attempts: int = 2) -> dict:
+    """Call Claude and parse JSON robustly. Retries with a fresh session on parse failure."""
+    last_err: Optional[Exception] = None
+    for n in range(attempts):
+        sid = session_id if n == 0 else f"{session_id}-retry-{n}-{uuid.uuid4()}"
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=sid,
+            system_message=system_message,
+        ).with_model("anthropic", "claude-sonnet-4-5-20250929")
+        try:
+            response = await chat.send_message(UserMessage(text=user_text))
+        except Exception as e:
+            last_err = e
+            continue
+        cleaned = strip_json_fences(response)
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            last_err = e
+            repaired = _try_repair_json(response)
+            if isinstance(repaired, dict):
+                return repaired
+            logger.warning(f"Claude JSON parse failed (attempt {n+1}/{attempts}): {e}")
+            continue
+    raise last_err or RuntimeError("Could not parse LLM JSON")
 
 
 def system_prompt_for(translation: str, avoid_refs: List[str]) -> str:
@@ -226,6 +343,8 @@ Always respond with ONLY a valid JSON object (no markdown, no code fences) in th
   "explanation": "A warm, empathetic 3-5 sentence reflection that gently connects the verse to their specific situation. Speak like a caring pastor or trusted friend — not a lecture. Acknowledge their feeling, then unfold the verse's meaning, then offer hope."
 }}
 
+CRITICAL JSON FORMATTING: Inside any string value, every double-quote character (") MUST be escaped as \\". Do NOT include raw unescaped " inside verse_text or explanation. Use straight ASCII quotes only, never curly quotes. The JSON must parse with strict json.loads.
+
 Choose verses that are deeply relevant. Vary your selections — the Bible is rich; rotate across the Old and New Testaments, the Psalms, the Gospels, the Epistles. Avoid prosperity-gospel platitudes. Do not include any text outside the JSON.{avoid_block}"""
 
 
@@ -238,7 +357,7 @@ Return ONLY a valid JSON object (no markdown, no code fences):
   "context_text": "The full passage text in {translation} translation, with verse numbers in [brackets] before each verse, separated by spaces."
 }}
 
-Stay strictly within the passage; do not add commentary."""
+CRITICAL: Inside any string value, escape every internal " as \\". Use ASCII quotes only. The JSON must parse with strict json.loads. Stay strictly within the passage; do not add commentary."""
 
 
 def deeper_prompt_for(translation: str, reference: str, verse_text: str, problem: str) -> str:
@@ -251,7 +370,9 @@ Return ONLY a valid JSON object (no markdown, no code fences):
 {{
   "reference": "{reference}",
   "explanation": "A thoughtful 6-9 sentence pastoral reflection. Cover: (1) the historical / literary context briefly, (2) the original meaning the author intended, (3) how Christians have traditionally read it, (4) what it specifically means for someone facing the user's struggle today, and (5) a gentle, practical application. Warm, never preachy."
-}}"""
+}}
+
+CRITICAL: Inside the explanation string, escape every internal " as \\". Use ASCII quotes only. The JSON must parse with strict json.loads."""
 
 
 def related_prompt_for(translation: str, reference: str, problem: str) -> str:
@@ -265,7 +386,9 @@ Return ONLY a valid JSON object (no markdown, no code fences):
     {{ "reference": "Book Chapter:Verse", "verse_text": "Full verse text in {translation}", "note": "One short sentence on how it connects." }},
     ...four items total
   ]
-}}"""
+}}
+
+CRITICAL: Inside any string value, escape every internal " as \\". Use ASCII quotes only. The JSON must parse with strict json.loads."""
 
 
 def search_prompt_for(translation: str) -> str:
@@ -285,7 +408,7 @@ Return ONLY a valid JSON object (no markdown, no code fences):
   ]
 }}
 
-Always include at least one item. If the input is unclear, do your best to interpret it as a topic."""
+CRITICAL: Inside any string value, escape every internal " as \\". Use ASCII quotes only. The JSON must parse with strict json.loads. Always include at least one item. If the input is unclear, do your best to interpret it as a topic."""
 
 
 # ---------------- Routes: Auth ----------------

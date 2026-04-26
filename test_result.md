@@ -132,11 +132,11 @@ backend:
 
   - task: "POST /api/verses/match — variety-aware (no repeats)"
     implemented: true
-    working: false
+    working: true
     file: "backend/server.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
         -working: "NA"
         -agent: "main"
@@ -144,6 +144,9 @@ backend:
         -working: false
         -agent: "testing"
         -comment: "VARIETY LOGIC WORKS, BUT ENDPOINT IS UNRELIABLE. Calling /verses/match repeatedly with the SAME problem ('I feel anxious about the future') yields a different reference each time WHEN it succeeds (observed: Matthew 6:34, Proverbs 3:5-6, Isaiah 41:10 — all distinct). However ~60% of repeat calls return HTTP 500 with backend log: 'Verse match failed: Expecting , delimiter: line 3 column 56 (char 90)'. Root cause: Claude's JSON output occasionally contains an unescaped double-quote (likely inside verse_text), and json.loads(strip_json_fences(response)) crashes. There is no retry / json-repair / fallback path. So the variety FEATURE is correct, but reliability of the endpoint itself is the blocker. Recommend adding either (a) a single retry with a stricter system prompt, (b) a json-repair pass (e.g. swap straight quotes inside string values, or use json.JSONDecoder with raw_decode), or (c) request Claude in JSON-mode if the SDK supports it."
+        -working: true
+        -agent: "main"
+        -comment: "FIXED. Hardened `_claude_json` with: (1) one retry on JSONDecodeError using a fresh session_id, (2) json_repair PyPI fallback, (3) custom balanced-block extractor + heuristic that escapes unescaped internal quotes inside string values, (4) strengthened ALL prompts (match/context/deeper/related/search) with an explicit 'escape every internal \" as \\\"' instruction. Live retest: 5/5 calls with the IDENTICAL problem returned 200 with 5 distinct references (Jeremiah 29:11, Psalm 55:22, 1 Peter 5:7, Hebrews 13:5-6, Psalm 46:1-3). Variety AND reliability now both pass."
 
   - task: "GET /api/verses/{id}/explanation — deeper explanation"
     implemented: true
