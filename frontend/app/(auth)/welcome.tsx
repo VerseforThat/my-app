@@ -27,7 +27,7 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
-import { fonts } from '../../src/theme';
+import { fonts, colors } from '../../src/theme';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -208,10 +208,9 @@ function SunGlow() {
             fx="50%"
             fy="22%"
           >
-            <Stop offset="0%" stopColor="#FFE7A8" stopOpacity="0.95" />
-            <Stop offset="35%" stopColor="#F6CE6E" stopOpacity="0.55" />
-            <Stop offset="65%" stopColor="#8B6F2F" stopOpacity="0.18" />
-            <Stop offset="100%" stopColor="#0B1426" stopOpacity="0" />
+            {colors.splash.sunGlow.map((s, i) => (
+              <Stop key={i} offset={s.offset} stopColor={s.color} stopOpacity={String(s.opacity)} />
+            ))}
           </SvgRadialGradient>
         </Defs>
         <Rect x="0" y="0" width={SCREEN_W} height={SCREEN_H} fill="url(#sun)" />
@@ -316,8 +315,8 @@ export default function Welcome() {
 
       {/* Base vertical gradient: deep navy → indigo → amber → warm gold */}
       <LinearGradient
-        colors={['#080F1F', '#0B1426', '#1A1B36', '#3B2E2A', '#7E5E22', '#C49234', '#F2C24F']}
-        locations={[0, 0.18, 0.38, 0.55, 0.74, 0.88, 1]}
+        colors={[...colors.splash.gradient]}
+        locations={[...colors.splash.gradientLocations]}
         start={{ x: 0.5, y: 1 }}
         end={{ x: 0.5, y: 0 }}
         style={StyleSheet.absoluteFill}
@@ -338,13 +337,13 @@ export default function Welcome() {
 
       {/* Top vignette to anchor the app name */}
       <LinearGradient
-        colors={['rgba(0,0,0,0.25)', 'transparent']}
+        colors={[colors.overlayLight, 'transparent']}
         style={[StyleSheet.absoluteFill, { height: SCREEN_H * 0.35 }]}
         pointerEvents="none"
       />
       {/* Bottom vignette to anchor the button */}
       <LinearGradient
-        colors={['transparent', 'rgba(0,0,0,0.45)']}
+        colors={['transparent', colors.overlayHeavy]}
         style={[
           StyleSheet.absoluteFill,
           { top: SCREEN_H * 0.6 },
@@ -395,17 +394,17 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0B1426',
+    backgroundColor: colors.splash.bgFallback,
     overflow: 'hidden',
   },
   cloud: {
     position: 'absolute',
-    backgroundColor: '#040813',
+    backgroundColor: colors.splash.cloudShadow,
   },
   particle: {
     position: 'absolute',
-    backgroundColor: '#FFF1B8',
-    shadowColor: '#FFE7A8',
+    backgroundColor: colors.splash.particle,
+    shadowColor: colors.splash.particleGlow,
     shadowOpacity: 0.9,
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 0 },
@@ -419,8 +418,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serifBold,
     fontSize: 26,
     letterSpacing: 1.2,
-    color: '#F2C24F',
-    textShadowColor: 'rgba(255,210,120,0.35)',
+    color: colors.splash.appName,
+    textShadowColor: colors.splash.appNameGlow,
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
   },
@@ -436,29 +435,29 @@ const styles = StyleSheet.create({
   },
   heroLine: {
     textAlign: 'center',
-    color: '#FFFFFF',
+    color: colors.splash.headlineText,
   },
   heroWord: {
     fontFamily: fonts.serifBold,
     fontSize: 30,
     lineHeight: 42,
-    color: '#FFFFFF',
+    color: colors.splash.headlineText,
     letterSpacing: -0.3,
-    textShadowColor: 'rgba(0,0,0,0.45)',
+    textShadowColor: colors.splash.headlineShadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 8,
   },
   subLine: {
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.92)',
+    color: colors.splash.subText,
   },
   subWord: {
     fontFamily: fonts.serif,
     fontStyle: 'italic',
     fontSize: 17,
     lineHeight: 26,
-    color: 'rgba(255,255,255,0.92)',
-    textShadowColor: 'rgba(0,0,0,0.4)',
+    color: colors.splash.subText,
+    textShadowColor: colors.splash.subShadow,
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
   },
@@ -481,16 +480,16 @@ const styles = StyleSheet.create({
     left: -8,
     right: -8,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: colors.splash.buttonGlow,
   },
   btn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.splash.buttonBg,
     paddingVertical: 18,
     paddingHorizontal: 22,
     borderRadius: 999,
     alignItems: 'center',
     width: '100%',
-    shadowColor: '#FFFFFF',
+    shadowColor: colors.splash.buttonShadow,
     shadowOpacity: 0.4,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
@@ -498,7 +497,7 @@ const styles = StyleSheet.create({
   btnText: {
     fontFamily: fonts.sansMedium,
     fontSize: 15.5,
-    color: '#0B1426',
+    color: colors.splash.buttonText,
     letterSpacing: 0.3,
   },
 });
