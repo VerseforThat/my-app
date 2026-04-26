@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
-import { Trash2, BookHeart } from 'lucide-react-native';
+import { Trash2, BookHeart, Share2 } from 'lucide-react-native';
 import { api, VerseMatch } from '../../src/api';
 import { colors, fonts, radii } from '../../src/theme';
+import { shareVerse } from '../../src/share';
 
 export default function Favorites() {
   const [items, setItems] = useState<VerseMatch[]>([]);
@@ -87,14 +88,24 @@ export default function Favorites() {
               </Text>
               <Text style={styles.verseText}>{item.verse_text}</Text>
               <Text style={styles.ref}>— {item.reference}</Text>
-              <TouchableOpacity
-                style={styles.remove}
-                onPress={() => onRemove(item.id)}
-                testID={`fav-remove-${item.id}`}
-                hitSlop={10}
-              >
-                <Trash2 size={16} color={colors.textSecondary} strokeWidth={1.5} />
-              </TouchableOpacity>
+              <View style={styles.cardActions}>
+                <TouchableOpacity
+                  style={styles.iconBtn}
+                  onPress={() => shareVerse(item.reference, item.verse_text)}
+                  testID={`fav-share-${item.id}`}
+                  hitSlop={10}
+                >
+                  <Share2 size={16} color={colors.textSecondary} strokeWidth={1.6} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iconBtn}
+                  onPress={() => onRemove(item.id)}
+                  testID={`fav-remove-${item.id}`}
+                  hitSlop={10}
+                >
+                  <Trash2 size={16} color={colors.textSecondary} strokeWidth={1.5} />
+                </TouchableOpacity>
+              </View>
             </View>
           ))
         )}
@@ -166,4 +177,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   remove: { position: 'absolute', top: 14, right: 14, padding: 6 },
+  cardActions: { position: 'absolute', top: 12, right: 12, flexDirection: 'row', gap: 4 },
+  iconBtn: { padding: 8 },
 });

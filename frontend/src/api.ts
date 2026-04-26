@@ -19,7 +19,17 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
-export type User = { id: string; email: string; name?: string };
+export type User = {
+  id: string;
+  email: string;
+  name?: string;
+  bible_translation: 'NIV' | 'KJV';
+  verses_used: number;
+  free_verses_remaining: number;
+  subscription_status: 'free' | 'trialing' | 'active' | 'expired';
+  is_premium: boolean;
+  current_period_end?: string | null;
+};
 export type AuthResponse = { access_token: string; token_type: string; user: User };
 export type VerseMatch = {
   id: string;

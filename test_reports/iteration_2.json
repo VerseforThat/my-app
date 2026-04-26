@@ -1,0 +1,56 @@
+{
+  "summary": "Iteration 2 testing complete. Backend: 15/16 pytest cases pass (1 known third-party Stripe-poll failure). Frontend mobile UI (390x844): all new features verified end-to-end — new home title, 5 chips with auto-submit, quota pill that decrements, 4th-match -> /paywall?reason=limit redirect, paywall pricing/buttons, Start 7-day free trial -> 'Free trial active', Settings subscription card transitions Free->Trial correctly, NIV/KJV toggle persists.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "GET /api/subscription/status/{session_id}",
+        "issue": "When polling a freshly-created cs_test_... session, Stripe returns 'No such checkout.session' which the emergentintegrations library wraps in CheckoutError -> uncaught -> 500. Endpoint should catch CheckoutError and return 4xx (e.g., 502/424) or a graceful payload instead of leaking 500. Reproduce: POST /api/subscription/checkout {origin_url}, then immediately GET /api/subscription/status/{session_id}. Root cause: emergentintegrations creates the session via integrations.emergentagent.com proxy but get_checkout_status() queries Stripe directly with sk_test_emergent which cannot find the session in that account."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "All screens",
+        "issues": [
+          "Pre-existing console deprecation warnings still present (shadow* style, TouchableWithoutFeedback in app/(tabs)/index.tsx, props.pointerEvents, expo-av, expo-notifications web push). Non-blocking."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2_features.py",
+    "/app/test_reports/pytest/iteration2_results.xml"
+  ],
+  "action_items": [
+    "Wrap the get_checkout_status call in /api/subscription/status/{session_id} with try/except for emergentintegrations CheckoutError and return 200 with payment_status='unknown' or a 502, so the frontend success page can poll without a 500.",
+    "(Optional) Replace TouchableWithoutFeedback in app/(tabs)/index.tsx with Pressable to silence RN web warning.",
+    "(Optional) Migrate VersePlayer from expo-av to expo-audio before SDK 54."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now ~695 lines and starting to feel large; consider splitting routers (auth, verses, subscription, tts) into modules.",
+    "is_user_premium() correctly checks both status and current_period_end; trial and active branches share the same gate.",
+    "Quota check correctly placed BEFORE the LLM call — no wasted LLM tokens on blocked requests.",
+    "_grant_premium_for_user extends from max(now, current_period_end) which is the right behavior for stacking renewals.",
+    "Webhook handler depends on emergentintegrations parsing the body; signature mismatches return 400 as expected.",
+    "PATCH /api/settings/translation uses Pydantic Literal['NIV','KJV'] giving automatic 422 on invalid values — good.",
+    "Frontend api.ts uses EXPO_PUBLIC_BACKEND_URL via process.env (already verified iteration 1).",
+    "Free verses counter and gating are atomic via $inc; no race condition in single-user scenarios."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2_features.py (new pytest suite for iteration 2 features)"
+  ],
+  "success_rate": {
+    "backend": "93.75% (15/16 pytest cases; 1 failure is a status-poll edge case in third-party emergentintegrations Stripe lookup)",
+    "frontend": "100% of tested flows: home title+chips+quota, 4th-match paywall redirect, Start 7-day free trial, KJV/NIV switch, subscription card states, verse result Save/Share/Read more context buttons present"
+  },
+  "seed_data_creation": "Several TEST users created during testing: test_it2_*@hisword.com (free + trial fixtures), ui_it2_*@hisword.com (UI free tester), ui_quota_*@hisword.com (UI quota+trial flow). Plus one Stripe payment_transactions row with status='pending' from checkout test.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 2 added: KJV translation, free quota (3 lifetime), 7-day trial, $4.99 Stripe checkout, Read more context (premium), 5 home chips, social/text share. Verified: PATCH /api/settings/translation, POST /api/subscription/start-trial, POST /api/subscription/checkout (returns valid cs_test_... + stripe.com URL), POST /api/webhook/stripe (rejects bad signature 400), POST /api/verses/match (3 free + 4th=402), GET /api/verses/{id}/context (premium=200, free=402). Frontend uses fetch via in-page JS for testing because direct urllib gets 403 from the K8s ingress when called from the test runner. Use page.evaluate(async () => fetch('/api/...')) pattern. The single backend failing test (status_endpoint) is documented above and is a third-party library issue, not blocking end-to-end (frontend success page handles it gracefully — but server should still wrap the 500).",
+  "rca_of_issue": "GET /api/subscription/status/{session_id} -> 500. RCA: line 611 server.py calls stripe_checkout.get_checkout_status(session_id) without try/except. For freshly created emergent-proxy sessions Stripe returns 'No such checkout.session' which emergentintegrations re-raises as CheckoutError, bubbling to FastAPI as 500. Mitigation: wrap call in try/except CheckoutError and return {'payment_status':'unknown', 'error':str(e)} or HTTPException(status_code=502)."
+}
