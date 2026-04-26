@@ -26,7 +26,7 @@ export default function Welcome() {
         <View style={styles.center}>
           <Text style={styles.title} testID="welcome-title">Verse{'\n'}for That</Text>
           <Text style={styles.subtitle}>
-            Bring your struggle. Receive the verse{'\n'}meant for this moment.
+            Quick answers for life's{'\n'}everyday struggles.
           </Text>
         </View>
         <View style={styles.bottom}>
