@@ -603,15 +603,24 @@ async def check_subscription_status(session_id: str, http_request: Request, curr
     # Already processed?
     if txn.get("payment_status") == "paid":
         user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password_hash": 0})
-        return {"payment_status": "paid", "user": serialize_user(user).dict()}
+        return {"payment_status": "paid", "status": "complete", "user": serialize_user(user).dict()}
 
     host_url = str(http_request.base_url).rstrip("/")
     webhook_url = f"{host_url}/api/webhook/stripe"
     stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
-    status = await stripe_checkout.get_checkout_status(session_id)
 
-    new_payment_status = status.payment_status
-    new_status = status.status
+    try:
+        status = await stripe_checkout.get_checkout_status(session_id)
+        new_payment_status = status.payment_status
+        new_status = status.status
+    except Exception as e:
+        logger.warning(f"Stripe status lookup failed for {session_id}: {e}")
+        user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password_hash": 0})
+        return {
+            "payment_status": txn.get("payment_status", "pending"),
+            "status": txn.get("status", "pending"),
+            "user": serialize_user(user).dict(),
+        }
 
     update = {"$set": {"payment_status": new_payment_status, "status": new_status, "updated_at": datetime.now(timezone.utc).isoformat()}}
     await db.payment_transactions.update_one({"session_id": session_id}, update)
