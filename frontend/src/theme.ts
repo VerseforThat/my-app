@@ -10,6 +10,12 @@ export const colors = {
   interactive: '#4A6150',
   error: '#B06A6A',
   border: 'rgba(45, 58, 48, 0.08)',
+  // Splash / cinematic palette
+  splashNavy: '#0B1426',
+  splashIndigo: '#2A2548',
+  splashAmber: '#8B6F2F',
+  splashGold: '#E8B547',
+  splashGoldBright: '#F6CE6E',
 };
 
 export const fonts = {
