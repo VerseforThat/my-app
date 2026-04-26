@@ -1,0 +1,121 @@
+{
+  "theme": "light",
+  "archetype": "1 (Organic & Earthy)",
+  "vibe": "Spiritual sanctuary, peaceful, contemplative, empathetic",
+  "typography": {
+    "primary_font": "Cormorant Garamond",
+    "primary_font_usage": "Bible verses, daily quotes, large emotional headings. Offers a classic, respectful, and emotional feel.",
+    "secondary_font": "Outfit",
+    "secondary_font_usage": "App UI, body text, buttons, history list. Provides a soft, readable, modern contrast to the serif.",
+    "heading_sizes": {
+      "h1": "text-4xl tracking-tighter leading-tight sm:text-5xl",
+      "h2": "text-2xl tracking-tight leading-snug sm:text-3xl",
+      "h3": "text-xl leading-snug",
+      "h4": "text-lg font-medium"
+    },
+    "body_sizes": {
+      "base": "text-base leading-relaxed",
+      "sm": "text-sm leading-relaxed",
+      "xs": "text-xs tracking-widest uppercase"
+    }
+  },
+  "colors": {
+    "background": {
+      "base": "#FAF9F6",
+      "surface": "#F4F1EA",
+      "surface_elevated": "#FFFFFF"
+    },
+    "text": {
+      "primary": "#2D3A30",
+      "secondary": "#717C73",
+      "disabled": "#A6AEA7"
+    },
+    "accents": {
+      "primary": "#A88D7D",
+      "primary_hover": "#8C7364",
+      "interactive": "#4A6150",
+      "error": "#B06A6A"
+    },
+    "glass": {
+      "background": "rgba(250, 249, 246, 0.7)",
+      "border": "rgba(45, 58, 48, 0.05)"
+    }
+  },
+  "layout_spacing": {
+    "screen_padding": "px-6 py-8 md:px-12 md:py-12",
+    "card_padding": "p-6 sm:p-8",
+    "item_gap": "gap-4 sm:gap-6",
+    "section_gap": "gap-12 sm:gap-16",
+    "border_radius": {
+      "button": "rounded-full",
+      "card": "rounded-3xl",
+      "input": "rounded-2xl"
+    }
+  },
+  "components": {
+    "home_input": {
+      "description": "A journal-like prominent text area where users type their struggle. Not a standard input box. It should feel like a safe, blank page.",
+      "styles": "bg-[#F4F1EA] rounded-3xl p-6 sm:p-8 min-h-[200px] text-lg text-[#2D3A30] placeholder-[#717C73] focus:outline-none focus:ring-1 focus:ring-[#A88D7D]/50 border-none",
+      "data_testid": "home-problem-input"
+    },
+    "submit_button": {
+      "description": "Organic, soft-pill button to submit the prayer/problem.",
+      "styles": "bg-[#2D3A30] text-[#FAF9F6] rounded-full px-8 py-4 font-medium text-base hover:bg-[#4A6150] transition-colors shadow-sm",
+      "data_testid": "home-submit-button"
+    },
+    "verse_display": {
+      "description": "Hero section for the matched verse. Massive top/bottom padding, center-aligned serif text.",
+      "styles": "font-['Cormorant_Garamond'] text-3xl sm:text-4xl leading-relaxed text-[#2D3A30] text-center mb-8",
+      "data_testid": "verse-text-display"
+    },
+    "explanation_card": {
+      "description": "Empathetic explanation container sitting below the verse.",
+      "styles": "bg-white/60 backdrop-blur-md rounded-3xl p-6 text-base text-[#4A6150] leading-relaxed border border-[#2D3A30]/5",
+      "data_testid": "verse-explanation-text"
+    },
+    "voice_player": {
+      "description": "Minimalist audio player. A floating pill or organic bottom sheet with play/pause and subtle progress indication.",
+      "styles": "fixed bottom-24 left-1/2 -translate-x-1/2 bg-[#F4F1EA] rounded-full px-6 py-3 flex items-center gap-4 shadow-[0_8px_32px_rgba(45,58,48,0.08)] border border-[#2D3A30]/5 backdrop-blur-xl",
+      "data_testid": "voice-player-controls"
+    },
+    "bottom_tab_nav": {
+      "description": "Mobile app bottom navigation bar.",
+      "styles": "fixed bottom-0 w-full h-20 bg-[#FAF9F6]/80 backdrop-blur-xl border-t border-[#2D3A30]/5 flex justify-around items-center px-6 pb-safe",
+      "data_testid": "bottom-tab-navigation"
+    }
+  },
+  "micro_interactions": {
+    "button_press": "Scale down slightly (scale-95) with opacity reduction (opacity-90) using spring animation.",
+    "page_transition": "Slow crossfade (400ms ease-in-out) to mimic deep breaths, avoiding fast slide animations.",
+    "voice_playing": "Subtle pulsing ring or soft waveform around the play button using the primary accent color (#A88D7D)."
+  },
+  "media": {
+    "icons": {
+      "library": "lucide-react",
+      "style": "stroke-width 1.5, slightly rounded, colors matching text.secondary, active colors matching text.primary"
+    },
+    "images": {
+      "home_background_overlay": {
+        "url": "https://images.unsplash.com/photo-1652049271153-b1695df29c6d?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwzfHx3YXJtJTIwc3VucmlzZSUyMGxpZ2h0JTIwbWluaW1hbCUyMGFic3RyYWN0fGVufDB8fHx8MTc3NzE4NTgyN3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Warm minimal abstract light to use as a very low-opacity (5%) background blend on the home screen to give it an ethereal warmth."
+      },
+      "daily_verse_background": {
+        "url": "https://images.unsplash.com/photo-1776109764926-ae63208aeced?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwxfHx3YXJtJTIwc3VucmlzZSUyMGxpZ2h0JTIwbWluaW1hbCUyMGFic3RyYWN0fGVufDB8fHx8MTc3NzE4NTgyN3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Golden calm ocean horizon. Perfect for the Daily Verse feature background, overlaid with a dark or light gradient scrim for text readability."
+      },
+      "history_empty_state": {
+        "url": "https://images.pexels.com/photos/551611/pexels-photo-551611.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Tranquil tree tops in fog. Use for empty states (e.g., 'No saved verses yet') to keep the vibe calm rather than displaying a generic blank screen."
+      }
+    }
+  },
+  "instructions_to_main_agent": [
+    "This is an Expo React Native application. Translate these Tailwind-like class strings into NativeWind classes or React Native StyleSheet objects appropriately.",
+    "Do NOT use typical default tech SaaS blues or purples. Stick strictly to the Organic & Earthy palette (Bone Whites, Warm Sands, Deep Olives).",
+    "Use the exact Google Fonts 'Cormorant Garamond' and 'Outfit' via Expo Google Fonts.",
+    "Maintain generous padding across the app to reinforce the 'sanctuary' vibe. The UI must breathe.",
+    "For the Voice Player, do not build a complex timeline scrubber. Use a minimal play/pause action button with a subtle loading/playing state.",
+    "Always apply the defined `data-testid` properties to interactive elements for testing.",
+    "Ensure contrast is accessible. The primary text (#2D3A30) against the bone background (#FAF9F6) is highly readable. Do not lighten text too much."
+  ]
+}
