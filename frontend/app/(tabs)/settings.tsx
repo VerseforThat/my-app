@@ -20,7 +20,9 @@ import {
   Sparkles,
   Crown,
   Check,
+  ExternalLink,
 } from 'lucide-react-native';
+import * as WebBrowser from 'expo-web-browser';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../src/AuthContext';
 import { api, formatError } from '../../src/api';
@@ -41,6 +43,31 @@ export default function Settings() {
   const [busy, setBusy] = useState(false);
   const [translationBusy, setTranslationBusy] = useState(false);
   const [translationError, setTranslationError] = useState('');
+  const [portalBusy, setPortalBusy] = useState(false);
+
+  const onManageSubscription = async () => {
+    if (!user?.is_premium) {
+      router.push('/paywall');
+      return;
+    }
+    setPortalBusy(true);
+    try {
+      const origin = Platform.OS === 'web'
+        ? (globalThis as any).location.origin
+        : process.env.EXPO_PUBLIC_BACKEND_URL;
+      const res = await api.post('/subscription/portal', { origin_url: origin });
+      const url: string = res.data.url;
+      if (Platform.OS === 'web') {
+        (globalThis as any).location.href = url;
+      } else {
+        await WebBrowser.openBrowserAsync(url);
+      }
+    } catch (e: any) {
+      Alert.alert('Could not open billing portal', formatError(e));
+    } finally {
+      setPortalBusy(false);
+    }
+  };
 
   const onConfirmLogout = () => {
     if (Platform.OS === 'web') {
@@ -104,7 +131,11 @@ export default function Settings() {
     }
     if (user.subscription_status === 'active') {
       const end = user.current_period_end ? new Date(user.current_period_end) : null;
-      return end ? `Premium · renews ${end.toLocaleDateString()}` : 'Premium';
+      const renewLabel = (user as any).cancel_at_period_end ? 'ends' : 'renews';
+      return end ? `Premium · ${renewLabel} ${end.toLocaleDateString()}` : 'Premium';
+    }
+    if (user.subscription_status === 'past_due') {
+      return 'Premium · payment past due';
     }
     return `Free · ${user.free_verses_remaining} of 3 verses left`;
   })();
@@ -154,14 +185,24 @@ export default function Settings() {
             </View>
           </View>
           <TouchableOpacity
-            style={[styles.subBtn, user?.is_premium && styles.subBtnLight]}
-            onPress={() => router.push('/paywall')}
+            style={[styles.subBtn, user?.is_premium && styles.subBtnLight, portalBusy && { opacity: 0.6 }]}
+            onPress={onManageSubscription}
+            disabled={portalBusy}
             testID="manage-subscription-btn"
             activeOpacity={0.85}
           >
-            <Text style={[styles.subBtnText, user?.is_premium && { color: colors.textPrimary }]}>
-              {user?.is_premium ? 'Renew / Manage' : 'Upgrade · 7-day free trial'}
-            </Text>
+            {portalBusy ? (
+              <ActivityIndicator color={user?.is_premium ? colors.textPrimary : colors.bg} />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.subBtnText, user?.is_premium && { color: colors.textPrimary }]}>
+                  {user?.is_premium ? 'Manage subscription' : 'Upgrade · 7-day free trial'}
+                </Text>
+                {user?.is_premium && (
+                  <ExternalLink size={14} color={colors.textPrimary} strokeWidth={1.6} />
+                )}
+              </View>
+            )}
           </TouchableOpacity>
         </View>
 

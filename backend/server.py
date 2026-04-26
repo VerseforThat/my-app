@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
+load_dotenv(ROOT_DIR / '.env', override=True)
 
 import os
 import logging
@@ -21,11 +21,9 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
 
 from emergentintegrations.llm.chat import LlmChat, UserMessage
-from emergentintegrations.payments.stripe.checkout import (
-    StripeCheckout,
-    CheckoutSessionRequest,
-)
 from elevenlabs import ElevenLabs, VoiceSettings
+import stripe
+import asyncio
 
 
 mongo_url = os.environ['MONGO_URL']
@@ -36,17 +34,21 @@ EMERGENT_LLM_KEY = os.environ['EMERGENT_LLM_KEY']
 ELEVENLABS_API_KEY = os.environ['ELEVENLABS_API_KEY']
 JWT_SECRET = os.environ['JWT_SECRET']
 STRIPE_API_KEY = os.environ['STRIPE_API_KEY']
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
 JWT_ALGORITHM = "HS256"
+
+stripe.api_key = STRIPE_API_KEY
 
 # David - British Radio Host & Storyteller
 DEFAULT_VOICE_ID = "5gLuKtB16QIQv1vuSas1"
 
-# Subscription product
+# Subscription product (Stripe handles auto-renewal natively)
 SUBSCRIPTION_PRICE_USD = 4.99
-SUBSCRIPTION_DAYS = 30
+SUBSCRIPTION_PRICE_CENTS = 499
 TRIAL_DAYS = 7
-FIRST_PAYMENT_DAYS = SUBSCRIPTION_DAYS + TRIAL_DAYS  # 37 days for first payment
 FREE_VERSES_LIFETIME = 3
+PRODUCT_NAME = "His Word Premium"
+PRICE_LOOKUP_KEY = "his_word_premium_monthly_499"
 
 eleven_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
@@ -508,14 +510,241 @@ async def daily_verse():
         return DailyVerse(**fallback)
 
 
-# ---------------- Routes: Subscription ----------------
+# ---------------- Routes: Subscription (Stripe native auto-renewing) ----------------
+async def _ensure_stripe_price() -> str:
+    """Idempotently ensure the $4.99/mo recurring price exists; return its id."""
+    cfg = await db.stripe_config.find_one({"key": "subscription_price"}, {"_id": 0})
+    if cfg and cfg.get("price_id"):
+        return cfg["price_id"]
+    # Try lookup_key first
+    existing = await asyncio.to_thread(
+        lambda: stripe.Price.list(lookup_keys=[PRICE_LOOKUP_KEY], active=True, limit=1)
+    )
+    if existing.data:
+        price_id = existing.data[0].id
+    else:
+        # Create product + price
+        product = await asyncio.to_thread(
+            lambda: stripe.Product.create(name=PRODUCT_NAME, description="Unlimited Bible verse matches, voice, context.")
+        )
+        price = await asyncio.to_thread(
+            lambda: stripe.Price.create(
+                product=product.id,
+                unit_amount=SUBSCRIPTION_PRICE_CENTS,
+                currency="usd",
+                recurring={"interval": "month"},
+                lookup_key=PRICE_LOOKUP_KEY,
+            )
+        )
+        price_id = price.id
+    await db.stripe_config.update_one(
+        {"key": "subscription_price"},
+        {"$set": {"price_id": price_id, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    logger.info(f"Stripe price ready: {price_id}")
+    return price_id
+
+
+async def _get_or_create_customer(user: dict) -> str:
+    if user.get("stripe_customer_id"):
+        return user["stripe_customer_id"]
+    customer = await asyncio.to_thread(
+        lambda: stripe.Customer.create(email=user["email"], name=user.get("name") or None, metadata={"user_id": user["id"]})
+    )
+    await db.users.update_one({"id": user["id"]}, {"$set": {"stripe_customer_id": customer.id}})
+    return customer.id
+
+
+async def _apply_subscription_to_user(user_id: str, sub: dict) -> None:
+    """Mirror Stripe subscription state onto our user document."""
+    status = sub.get("status", "free")  # trialing, active, past_due, canceled, unpaid, incomplete
+    cpe_ts = sub.get("current_period_end")
+    cpe_iso = datetime.fromtimestamp(cpe_ts, tz=timezone.utc).isoformat() if cpe_ts else None
+    update = {
+        "subscription_status": status,
+        "stripe_subscription_id": sub.get("id"),
+        "current_period_end": cpe_iso,
+        "cancel_at_period_end": bool(sub.get("cancel_at_period_end", False)),
+    }
+    await db.users.update_one({"id": user_id}, {"$set": update})
+
+
+@api_router.post("/subscription/checkout")
+async def create_subscription_checkout(
+    payload: CheckoutRequest, http_request: Request, current_user: dict = Depends(get_current_user)
+):
+    if is_user_premium(current_user) and current_user.get("subscription_status") in ("trialing", "active"):
+        raise HTTPException(status_code=400, detail="You already have an active subscription.")
+
+    price_id = await _ensure_stripe_price()
+    customer_id = await _get_or_create_customer(current_user)
+
+    origin = payload.origin_url.rstrip("/")
+    success_url = f"{origin}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin}/subscription/cancel"
+
+    # Only first-time users get the 7-day free trial
+    is_first_payment = not current_user.get("first_payment_done", False)
+    subscription_data = {"metadata": {"user_id": current_user["id"]}}
+    if is_first_payment:
+        subscription_data["trial_period_days"] = TRIAL_DAYS
+
+    try:
+        session = await asyncio.to_thread(
+            lambda: stripe.checkout.Session.create(
+                mode="subscription",
+                customer=customer_id,
+                line_items=[{"price": price_id, "quantity": 1}],
+                success_url=success_url,
+                cancel_url=cancel_url,
+                subscription_data=subscription_data,
+                allow_promotion_codes=True,
+                metadata={"user_id": current_user["id"]},
+            )
+        )
+    except stripe.error.StripeError as e:
+        logger.error(f"Stripe checkout failed: {e}")
+        raise HTTPException(status_code=502, detail=str(e.user_message or "Stripe error"))
+
+    await db.payment_transactions.insert_one({
+        "id": str(uuid.uuid4()),
+        "session_id": session.id,
+        "user_id": current_user["id"],
+        "email": current_user["email"],
+        "amount": SUBSCRIPTION_PRICE_USD,
+        "currency": "usd",
+        "metadata": {"plan": "monthly_4_99", "trial_days": TRIAL_DAYS if is_first_payment else 0},
+        "payment_status": "pending",
+        "status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    return {"url": session.url, "session_id": session.id, "trial_days": TRIAL_DAYS if is_first_payment else 0}
+
+
+@api_router.get("/subscription/status/{session_id}")
+async def check_subscription_status(session_id: str, current_user: dict = Depends(get_current_user)):
+    txn = await db.payment_transactions.find_one(
+        {"session_id": session_id, "user_id": current_user["id"]}, {"_id": 0}
+    )
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    try:
+        session = await asyncio.to_thread(
+            lambda: stripe.checkout.Session.retrieve(session_id, expand=["subscription"])
+        )
+    except stripe.error.StripeError as e:
+        logger.warning(f"Stripe session lookup failed for {session_id}: {e}")
+        user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password_hash": 0})
+        return {
+            "payment_status": txn.get("payment_status", "pending"),
+            "status": txn.get("status", "pending"),
+            "user": serialize_user(user).dict(),
+        }
+
+    payment_status = session.payment_status  # paid, unpaid, no_payment_required
+    status = session.status  # complete, expired, open
+    sub = session.subscription if hasattr(session, "subscription") and session.subscription else None
+
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {"payment_status": payment_status, "status": status, "updated_at": datetime.now(timezone.utc).isoformat()}},
+    )
+
+    if sub and isinstance(sub, dict) is False:
+        sub = sub.to_dict() if hasattr(sub, "to_dict") else dict(sub)
+
+    if sub and not current_user.get("first_payment_done") and (sub.get("status") in ("trialing", "active")):
+        await db.users.update_one({"id": current_user["id"]}, {"$set": {"first_payment_done": True}})
+
+    if sub:
+        await _apply_subscription_to_user(current_user["id"], sub)
+
+    user = await db.users.find_one({"id": current_user["id"]}, {"_id": 0, "password_hash": 0})
+    return {"payment_status": payment_status, "status": status, "user": serialize_user(user).dict()}
+
+
+@api_router.post("/subscription/portal")
+async def create_billing_portal(payload: CheckoutRequest, current_user: dict = Depends(get_current_user)):
+    customer_id = current_user.get("stripe_customer_id")
+    if not customer_id:
+        raise HTTPException(status_code=400, detail="No subscription found")
+    return_url = payload.origin_url.rstrip("/") + "/(tabs)/settings"
+    try:
+        portal = await asyncio.to_thread(
+            lambda: stripe.billing_portal.Session.create(customer=customer_id, return_url=return_url)
+        )
+    except stripe.error.StripeError as e:
+        logger.error(f"Portal create failed: {e}")
+        raise HTTPException(status_code=502, detail=str(e.user_message or "Stripe error"))
+    return {"url": portal.url}
+
+
 @api_router.post("/subscription/start-trial", response_model=UserResponse)
 async def start_trial(current_user: dict = Depends(get_current_user)):
-    # Card-free trials are no longer offered. The 7-day trial is bundled into the first $4.99 payment.
     raise HTTPException(
         status_code=400,
-        detail="Card-free trial is no longer available. Your first $4.99 payment includes a 7-day free trial.",
+        detail="Card-free trial is no longer available. Add a card via the subscribe button to start your 7-day free trial.",
     )
+
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    body = await request.body()
+    signature = request.headers.get("Stripe-Signature", "")
+
+    # Verify signature if secret configured
+    if STRIPE_WEBHOOK_SECRET:
+        try:
+            event = stripe.Webhook.construct_event(body, signature, STRIPE_WEBHOOK_SECRET)
+        except (ValueError, stripe.error.SignatureVerificationError) as e:
+            logger.warning(f"Webhook signature verification failed: {e}")
+            raise HTTPException(status_code=400, detail="Invalid signature")
+    else:
+        # No secret configured — parse raw event (dev only)
+        try:
+            event = stripe.Event.construct_from(json.loads(body.decode("utf-8")), stripe.api_key)
+        except Exception as e:
+            logger.warning(f"Webhook parse failed: {e}")
+            raise HTTPException(status_code=400, detail="Invalid payload")
+
+    event_type = event["type"]
+    obj = event["data"]["object"]
+    logger.info(f"Stripe webhook: {event_type}")
+
+    try:
+        if event_type == "checkout.session.completed":
+            user_id = (obj.get("metadata") or {}).get("user_id")
+            sub_id = obj.get("subscription")
+            if user_id and sub_id:
+                sub = await asyncio.to_thread(lambda: stripe.Subscription.retrieve(sub_id))
+                await _apply_subscription_to_user(user_id, sub.to_dict() if hasattr(sub, "to_dict") else dict(sub))
+                await db.users.update_one({"id": user_id}, {"$set": {"first_payment_done": True}})
+
+        elif event_type in ("customer.subscription.created", "customer.subscription.updated", "customer.subscription.deleted"):
+            user_id = (obj.get("metadata") or {}).get("user_id")
+            if not user_id:
+                # try to find by customer id
+                cust_id = obj.get("customer")
+                user = await db.users.find_one({"stripe_customer_id": cust_id}, {"_id": 0, "id": 1})
+                user_id = user["id"] if user else None
+            if user_id:
+                sub_dict = obj if isinstance(obj, dict) else dict(obj)
+                if event_type == "customer.subscription.deleted":
+                    sub_dict["status"] = "canceled"
+                await _apply_subscription_to_user(user_id, sub_dict)
+
+        elif event_type == "invoice.payment_failed":
+            cust_id = obj.get("customer")
+            user = await db.users.find_one({"stripe_customer_id": cust_id}, {"_id": 0, "id": 1})
+            if user:
+                await db.users.update_one({"id": user["id"]}, {"$set": {"subscription_status": "past_due"}})
+    except Exception as e:
+        logger.error(f"Webhook handler error: {e}")
+
+    return {"received": True}
 
 
 @api_router.post("/subscription/checkout")

@@ -1,0 +1,86 @@
+{
+  "summary": "Iteration 3 backend: 14/19 pytest cases pass. Stripe SDK switch verified — checkout returns real https://checkout.stripe.com cs_test_... session in mode=subscription with trial_period_days=7, billing_portal returns https://billing.stripe.com URL, /subscription/start-trial correctly returns 400, all baseline flows (signup/login/me/translation/daily-verse/verse-match 3-cap/history/favorites/TTS) regress green. CRITICAL BUG: every customer.subscription.* webhook event raises 'Webhook handler error: get' so the user document NEVER transitions trialing/active/canceled — 5 webhook-driven tests fail and is_premium stays false even after Stripe simulates trial start. Frontend paywall/settings code carries new iteration-3 strings (FIRST 7 DAYS ON US, $4.99, Start 7-day free trial, Manage subscription) but the disclosure paragraph still reads 'No auto-renewal — you choose when to renew' and '37 days for your first payment', which is misleading copy now that the architecture is real recurring auto-charge.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/webhook/stripe (customer.subscription.created/updated/deleted)",
+        "issue": "Handler logs 'Webhook handler error: get' for every subscription event, so _apply_subscription_to_user is never executed. User stays subscription_status='free' / is_premium=false after Stripe sends a trial-start, active, or cancel event. Reproduce: POST /api/webhook/stripe with body {type:'customer.subscription.created', data:{object:{id:'sub_x', status:'trialing', current_period_end:<unix>, metadata:{user_id:<uid>}, customer:'cus_x', cancel_at_period_end:false}}}. Response is 200 {received:true} (silently swallowed in try/except) but DB unchanged. Likely the stripe.Event.construct_from path produces a StripeObject for event['data']['object'] and either obj.get('metadata') or the chained .get inside _apply_subscription_to_user blows up — the catch-all logs only str(e)='get' so likely AttributeError on something accessed with .get. Fix: convert obj to a plain dict explicitly (dict(obj) doesn't deep-convert StripeObjects; need json.loads(json.dumps(obj))) BEFORE calling _apply_subscription_to_user, and ensure metadata access is .get('metadata',{}) not .get('metadata') or {}. Also confirm _apply_subscription_to_user receives a dict whose nested values are plain Python (current_period_end is int, status is str). This is blocking — without it Stripe webhooks cannot grant premium.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "server.py – duplicate route definitions",
+        "issue": "Lines 750-899 define a SECOND copy of POST /subscription/checkout, GET /subscription/status/{session_id}, and POST /webhook/stripe using the OLD emergentintegrations.payments.stripe (StripeCheckout, CheckoutSessionRequest, FIRST_PAYMENT_DAYS, SUBSCRIPTION_DAYS) — none of those names are imported/defined any more. They're dead code only because FastAPI matches the FIRST registered route at lines 573/626/693, but if anyone touches the route order or the dead bodies are accidentally executed, the server will throw NameError at runtime. Also _grant_premium_for_user at line 801 is dead. Strip the dead block (lines 750–899).",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": [
+      {
+        "endpoint": "POST /api/webhook/stripe",
+        "issue": "Top-level try/except logs only str(e) and returns 200 {received:true} even when handler completely failed to apply state. Re-raise as 500 (or at minimum return {received:true, processed:false, error:...}) so failures are visible to retries from Stripe."
+      },
+      {
+        "endpoint": "POST /api/subscription/portal",
+        "issue": "return_url is hard-coded to '<origin>/(tabs)/settings'. The literal parens are URL-special chars — works in Expo Router web but worth url-encoding for safety."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "app/paywall.tsx",
+        "issue": "Disclosure copy still says 'No auto-renewal — you choose when to renew' (line ~162) and the breakdown row reads '37 days for your first payment' (line ~125). This contradicts iteration-3 architecture (real Stripe auto-renewing monthly subscription). Update to: '$0 for the first 7 days, then $4.99/month auto-renews. Cancel anytime in the billing portal.'",
+        "testID": "paywall-disclosure",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Trial start UX",
+        "issue": "Because the webhook bug above means is_premium stays false after a Stripe trial actually begins, the Settings 'subscription card' (Free → Trial · ends DATE → Premium · renews DATE → past_due) cannot be exercised end-to-end until the webhook bug is fixed. Status text computation logic in settings.tsx looks correct, but blocked on backend.",
+        "affected_testIDs": ["settings-subscription-card", "settings-manage-subscription"]
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "All screens",
+        "issues": [
+          "Pre-existing console deprecation warnings still present (shadow* style, props.pointerEvents, expo-av, expo-notifications web push, expo-sharing@55 vs expected ~14). Non-blocking carried over from iteration 2."
+        ]
+      }
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3_subscription.py",
+    "/app/test_reports/pytest/iteration3_results.xml"
+  ],
+  "action_items": [
+    "FIX: webhook handler 'get' AttributeError so customer.subscription.created/updated/deleted actually mutate the user document. Convert event['data']['object'] to a plain dict via stripe.util.convert_to_dict(obj) or obj.to_dict_recursive() (or json.loads(json.dumps(obj, default=str))) BEFORE accessing metadata.user_id and BEFORE calling _apply_subscription_to_user.",
+    "DELETE the duplicate dead route block at server.py lines 750-899 (StripeCheckout-based old checkout/status/webhook + _grant_premium_for_user). Names referenced inside (StripeCheckout, CheckoutSessionRequest, FIRST_PAYMENT_DAYS, SUBSCRIPTION_DAYS) are undefined.",
+    "UPDATE paywall.tsx disclosure: replace 'No auto-renewal — you choose when to renew' and '37 days for your first payment' with iteration-3 accurate auto-renew copy (e.g., '$0 today, $4.99/month after the 7-day free trial. Cancel anytime.').",
+    "OPTIONAL: have webhook return processed:false (or 5xx) on handler errors so Stripe will retry instead of silently 200ing.",
+    "Re-run /app/backend/tests/test_iteration3_subscription.py after the webhook fix; expect 19/19 green (TestSubscriptionCheckout::test_already_active_user_cannot_checkout, TestWebhook::*, TestRegression::test_premium_context_works_for_trial_user all unblock)."
+  ],
+  "critical_code_review_comments": [
+    "server.py is now 934 lines with ~150 lines of dead code (duplicated subscription/portal/webhook routes referencing undefined names). Strongly recommend splitting into routers (auth.py, verses.py, subscription.py, tts.py).",
+    "_apply_subscription_to_user correctly mirrors Stripe -> user doc and is_user_premium correctly checks status ∈ {trialing, active} AND current_period_end>now. Logic is right; only the webhook plumbing into it is broken.",
+    "_ensure_stripe_price is idempotent (caches price_id in db.stripe_config) — verified via backend logs (one create on first checkout, reuse afterwards).",
+    "_get_or_create_customer correctly persists stripe_customer_id on the user — verified via subsequent /subscription/portal returning a billing.stripe.com URL after only a checkout call.",
+    "POST /subscription/checkout correctly enforces 'already active' by checking is_user_premium AND status ∈ trialing/active (would have been 400 if webhook bug didn't keep users at free).",
+    "GET /subscription/status/{id} now uses the official stripe SDK and gracefully degrades when Stripe lookup fails — fixed the iteration-2 500 issue.",
+    "Webhook signature check is correctly skipped when STRIPE_WEBHOOK_SECRET=='' (dev mode); malformed JSON returns 400 — verified.",
+    "Frontend api.ts continues to use process.env.EXPO_PUBLIC_BACKEND_URL — confirmed via direct fetch in browser context."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3_subscription.py (new pytest suite for iteration 3)"
+  ],
+  "success_rate": {
+    "backend": "73.7% (14/19 pytest cases). The 5 failures all share ONE root cause — webhook handler 'get' AttributeError. Fixing it will flip all 5 to green.",
+    "frontend": "Code review only this iteration — paywall+settings carry correct iteration-3 strings (FIRST 7 DAYS ON US, $4.99, Start 7-day free trial · $4.99, Manage subscription). One copy bug: disclosure still claims 'No auto-renewal'."
+  },
+  "seed_data_creation": "Several TEST users created during pytest: TEST_it3_free_*, TEST_it3_trial_*, TEST_it3_webhook_*, TEST_it3_base_*, TEST_it3_kjv_*, TEST_it3_quota_*, TEST_it3_hist_*, TEST_it3_ctx_*, TEST_it3_tts_*, TEST_it3_noportal_*. Plus several Stripe test customers (cus_*) and Checkout sessions (cs_test_*) created against the user's real test account.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 3 = real Stripe subscription mode (mode=subscription, trial_period_days=7, $4.99/mo) using user's own sk_test_51TQNf... key. Backend wires: /api/subscription/checkout (returns real cs_test_ + checkout.stripe.com URL), /api/subscription/portal (returns billing.stripe.com URL), /api/subscription/status/{id} (degrades gracefully now), /api/webhook/stripe (signature-optional in dev). Webhook event types handled: checkout.session.completed, customer.subscription.created/updated/deleted, invoice.payment_failed → past_due. _apply_subscription_to_user mirrors status + current_period_end + cancel_at_period_end. AFTER the webhook 'get' bug is fixed, simulate trial start with: POST /api/webhook/stripe {type:'customer.subscription.created', data:{object:{id:'sub_x', status:'trialing', current_period_end:<unix>, metadata:{user_id:<uid>}, customer:'cus_x', cancel_at_period_end:false}}} → /auth/me should show subscription_status='trialing', is_premium=true, current_period_end set. Then test active and canceled transitions with the same shape. Pytest harness already covers all of this — just rerun /app/backend/tests/test_iteration3_subscription.py.",
+  "rca_of_issue": "RCA: POST /api/webhook/stripe handler at server.py line 693 catches a generic Exception, logs 'Webhook handler error: get'. The error originates either at line 727 `(obj.get('metadata') or {}).get('user_id')` or inside _apply_subscription_to_user `sub.get('status', 'free')`. event = stripe.Event.construct_from(json.loads(body), api_key) returns a stripe.Event whose `data.object` is a stripe.Subscription StripeObject. While StripeObject is dict-subclass, nested fields like `metadata` are themselves StripeObjects — calling .get on them works in current SDK versions, BUT chained access like sub_dict['status'] after assigning `sub_dict = obj if isinstance(obj, dict) else dict(obj)` may not deep-convert; dict(stripe_obj) only shallow-converts. Reproduction: see test_iteration3_subscription.py::TestWebhook::test_webhook_no_signature_dev_mode_accepts. Mitigation: replace `obj` extraction with `obj = json.loads(json.dumps(event['data']['object'], default=str))` to get a fully plain-dict tree; then all .get calls work. Alternative: use stripe SDK's `event.data.object.to_dict_recursive()`. Either fix unblocks all 5 failing tests."
+}
