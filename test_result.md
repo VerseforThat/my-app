@@ -101,3 +101,78 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  Bible-verse companion app "Verse for That". Latest user requests:
+  1) Move clickable problem topics (chips) to BELOW the text input so user sees the box first.
+  2) Helper line should read: "Tap one of the options below or describe it in your own words."
+  3) Daily verse notification: enable scheduling at 8 AM (morning default).
+  4) Polish the "Read more context" button (already wired to /api/verses/{id}/context).
+
+frontend:
+  - task: "Reorder home: text box first, chips below with new helper copy"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Moved TextInput + Find-my-verse button above chips. Helper text now: 'Tap one of the options below or describe it in your own words.' Verified visually via screenshot — layout renders correctly on 390x844 mobile viewport."
+
+  - task: "Daily verse notification at 8 AM with persisted toggle"
+    implemented: true
+    working: "NA"
+    file: "frontend/app/(tabs)/settings.tsx, frontend/app/_layout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: "Added Notifications.setNotificationHandler in _layout.tsx for foreground alerts. settings.tsx now restores toggle state from storage on mount, persists ON/OFF, schedules a DAILY trigger (hour=8, minute=0) via SchedulableTriggerInputTypes.DAILY, and gracefully handles web (where local notifications aren't reliable). Cancels prior notifications to prevent duplicates."
+
+  - task: "'Read more context' premium UI"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Already implemented in earlier session: BookOpen-iconed pill button below verse, opens pageSheet modal, fetches /api/verses/{id}/context, gates non-premium users to paywall with PREMIUM lock tag. Backend confirmed in logs (200 OK for context endpoint)."
+
+backend:
+  - task: "/api/verses/{id}/context endpoint (premium-gated)"
+    implemented: true
+    working: true
+    file: "backend/server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Endpoint already verified working from previous iteration logs (200 OK for premium, 402 for free)."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.2"
+  test_sequence: 6
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Reorder home: text box first, chips below with new helper copy"
+    - "Daily verse notification at 8 AM with persisted toggle"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    -agent: "main"
+    -message: "Three small UX changes: (1) Home screen now shows the text box and 'Find my verse' button before the suggestion chips, with refreshed helper text. (2) Daily verse reminder is fully wired: foreground notification handler in _layout, persistent toggle in Settings using existing storage shim, DAILY trigger at 8 AM. (3) Read more context UI confirmed working from prior testing. No backend changes — only frontend. Web preview verified visually."

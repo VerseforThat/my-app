@@ -80,7 +80,7 @@ export default function History() {
             <Clock size={28} color={colors.accent} strokeWidth={1.4} style={{ marginTop: 24 }} />
             <Text style={styles.emptyTitle}>Your story begins today</Text>
             <Text style={styles.emptyText}>
-              Each time you ask, His Word remembers. Bring your first concern from the Home tab.
+              Every time you ask, Verse for That remembers. Bring your first concern from the Home tab.
             </Text>
           </View>
         ) : (

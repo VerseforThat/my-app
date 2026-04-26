@@ -14,10 +14,25 @@ import {
   Outfit_600SemiBold,
 } from '@expo-google-fonts/outfit';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 import { AuthProvider, useAuth } from '../src/AuthContext';
 import { colors } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+
+// Show local notifications even when the app is foregrounded
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowAlert: true,
+    } as any),
+  });
+}
 
 function RootGate() {
   const { user, loading } = useAuth();

@@ -1,7 +1,7 @@
 import { Platform, Share as RNShare } from 'react-native';
 
 export async function shareVerse(reference: string, verseText: string): Promise<boolean> {
-  const message = `"${verseText}"\n\n— ${reference}\n\nShared from His Word`;
+  const message = `"${verseText}"\n\n— ${reference}\n\nShared from Verse for That`;
 
   if (Platform.OS === 'web') {
     const navAny = (globalThis as any).navigator;

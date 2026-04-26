@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,12 @@ import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../src/AuthContext';
 import { api, formatError } from '../../src/api';
 import { colors, fonts, radii } from '../../src/theme';
+import { getItem, setItem } from '../../src/storage';
+
+const DAILY_NOTIF_KEY = 'daily_notif_enabled';
+const DAILY_NOTIF_ID_KEY = 'daily_notif_id';
+const DAILY_HOUR = 8;
+const DAILY_MINUTE = 0;
 
 const TRANSLATIONS = ['NIV', 'KJV'] as const;
 type Translation = typeof TRANSLATIONS[number];
@@ -44,6 +50,16 @@ export default function Settings() {
   const [translationBusy, setTranslationBusy] = useState(false);
   const [translationError, setTranslationError] = useState('');
   const [portalBusy, setPortalBusy] = useState(false);
+
+  // Restore daily-notification toggle state on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await getItem(DAILY_NOTIF_KEY);
+        if (saved === '1') setDailyOn(true);
+      } catch {}
+    })();
+  }, []);
 
   const onManageSubscription = async () => {
     if (!user?.is_premium) {
@@ -81,28 +97,48 @@ export default function Settings() {
   };
 
   const onToggleDaily = async (value: boolean) => {
+    if (Platform.OS === 'web') {
+      // Local notifications aren't reliable on web; just inform the user.
+      Alert.alert?.(
+        'Use the mobile app',
+        'Daily verse reminders are delivered through the mobile app. Open Verse for That on your phone to enable.'
+      );
+      return;
+    }
     setBusy(true);
     try {
       if (value) {
         const { status } = await Notifications.requestPermissionsAsync();
         if (status !== 'granted') {
-          if (Platform.OS !== 'web') {
-            Alert.alert('Permission needed', 'Please enable notifications in your device settings.');
-          }
+          Alert.alert('Permission needed', 'Please enable notifications in your device settings.');
           setDailyOn(false);
           return;
         }
+        // Cancel any prior reminders so we never stack duplicates
         await Notifications.cancelAllScheduledNotificationsAsync();
-        await Notifications.scheduleNotificationAsync({
-          content: { title: 'A verse for today 🌅', body: 'Open His Word to read today\'s verse.' },
-          trigger: { hour: 8, minute: 0, repeats: true } as any,
+
+        const id = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: 'A verse for today 🌅',
+            body: 'Open Verse for That to read today\'s verse.',
+            sound: 'default',
+          },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DAILY,
+            hour: DAILY_HOUR,
+            minute: DAILY_MINUTE,
+          } as any,
         });
+        await setItem(DAILY_NOTIF_KEY, '1');
+        await setItem(DAILY_NOTIF_ID_KEY, id);
         setDailyOn(true);
       } else {
         await Notifications.cancelAllScheduledNotificationsAsync();
+        await setItem(DAILY_NOTIF_KEY, '0');
         setDailyOn(false);
       }
-    } catch {
+    } catch (e) {
+      console.warn('Daily notif toggle failed', e);
       setDailyOn(false);
     } finally {
       setBusy(false);
@@ -177,7 +213,7 @@ export default function Settings() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[styles.subPlan, user?.is_premium && { color: colors.bg }]}>
-                {user?.is_premium ? 'His Word Premium' : 'Free plan'}
+                {user?.is_premium ? 'Verse for That Premium' : 'Free plan'}
               </Text>
               <Text style={[styles.subStatus, user?.is_premium && { color: 'rgba(250,249,246,0.85)' }]}>
                 {planLabel}
@@ -261,7 +297,7 @@ export default function Settings() {
         <View style={styles.row}>
           <Heart size={18} color={colors.textPrimary} strokeWidth={1.5} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>About His Word</Text>
+            <Text style={styles.rowTitle}>About Verse for That</Text>
             <Text style={styles.rowSub}>A Bible verse companion for every season.</Text>
           </View>
         </View>

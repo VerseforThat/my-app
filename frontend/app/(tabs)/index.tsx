@@ -162,7 +162,7 @@ export default function Home() {
                 {greeting}{user?.name ? `, ${user.name}` : ''}
               </Text>
               <View style={styles.brandRow}>
-                <Text style={styles.brand} testID="home-brand">His Word</Text>
+                <Text style={styles.brand} testID="home-brand">Verse for That</Text>
                 {!!quotaText && (
                   <View style={[
                     styles.quotaPill,
@@ -192,27 +192,9 @@ export default function Home() {
 
                 <View style={styles.promptSection}>
                   <Text style={styles.promptTitle}>What's the problem{'\n'}you're trying to{'\n'}work through?</Text>
-                  <Text style={styles.promptHelp}>
-                    Tap one of these — or describe it in your own words.
-                  </Text>
-
-                  <View style={styles.chips}>
-                    {QUICK_PROMPTS.map((p) => (
-                      <TouchableOpacity
-                        key={p}
-                        style={styles.chip}
-                        onPress={() => onChipPress(p)}
-                        disabled={loading}
-                        testID={`chip-${p.toLowerCase().replace(/\s+/g, '-')}`}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.chipText}>{p}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
 
                   <TextInput
-                    style={styles.input}
+                    style={[styles.input, { marginTop: 22 }]}
                     value={problem}
                     onChangeText={setProblem}
                     placeholder="I feel overwhelmed by..."
@@ -240,6 +222,25 @@ export default function Home() {
                       </>
                     )}
                   </TouchableOpacity>
+
+                  <Text style={styles.promptHelp}>
+                    Tap one of the options below or describe it in your own words.
+                  </Text>
+
+                  <View style={styles.chips}>
+                    {QUICK_PROMPTS.map((p) => (
+                      <TouchableOpacity
+                        key={p}
+                        style={styles.chip}
+                        onPress={() => onChipPress(p)}
+                        disabled={loading}
+                        testID={`chip-${p.toLowerCase().replace(/\s+/g, '-')}`}
+                        activeOpacity={0.7}
+                      >
+                        <Text style={styles.chipText}>{p}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
                 </View>
               </>
             )}
@@ -374,7 +375,7 @@ const styles = StyleSheet.create({
   header: { paddingTop: 16, marginBottom: 28 },
   greeting: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary, letterSpacing: 0.3 },
   brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 },
-  brand: { fontFamily: fonts.serifBold, fontSize: 36, color: colors.textPrimary, letterSpacing: -0.5 },
+  brand: { fontFamily: fonts.serifBold, fontSize: 28, color: colors.textPrimary, letterSpacing: -0.5, flex: 1 },
   quotaPill: {
     backgroundColor: colors.surface,
     borderRadius: radii.pill,

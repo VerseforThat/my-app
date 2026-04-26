@@ -77,7 +77,7 @@ export default function SubscriptionSuccess() {
               <Check size={36} color={colors.bg} strokeWidth={2.5} />
             </View>
             <Text style={styles.title}>Welcome to premium</Text>
-            <Text style={styles.sub}>His Word is now yours, unlimited.</Text>
+            <Text style={styles.sub}>Verse for That is now yours, unlimited.</Text>
             <TouchableOpacity
               style={styles.btn}
               onPress={() => router.replace('/(tabs)')}

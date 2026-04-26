@@ -47,12 +47,12 @@ SUBSCRIPTION_PRICE_USD = 4.99
 SUBSCRIPTION_PRICE_CENTS = 499
 TRIAL_DAYS = 7
 FREE_VERSES_LIFETIME = 3
-PRODUCT_NAME = "His Word Premium"
+PRODUCT_NAME = "Verse for That Premium"
 PRICE_LOOKUP_KEY = "his_word_premium_monthly_499"
 
 eleven_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
 
-app = FastAPI(title="His Word API")
+app = FastAPI(title="Verse for That API")
 api_router = APIRouter(prefix="/api")
 security = HTTPBearer(auto_error=False)
 
@@ -208,7 +208,7 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # ---------------- LLM helpers ----------------
 def system_prompt_for(translation: str) -> str:
-    return f"""You are a compassionate, faithful Christian companion in the "His Word" app. Your role is to listen deeply to a person sharing a struggle, fear, joy, or question — and respond with the most fitting Bible verse from the {translation} translation.
+    return f"""You are a compassionate, faithful Christian companion in the "Verse for That" app. Your role is to listen deeply to a person sharing a struggle, fear, joy, or question — and respond with the most fitting Bible verse from the {translation} translation.
 
 Always respond with ONLY a valid JSON object (no markdown, no code fences) in this exact shape:
 {{
@@ -793,7 +793,7 @@ async def stripe_webhook(request: Request):
 # ---------------- Health ----------------
 @api_router.get("/")
 async def root():
-    return {"message": "His Word API", "status": "ok"}
+    return {"message": "Verse for That API", "status": "ok"}
 
 
 # ---------------- Startup / shutdown ----------------

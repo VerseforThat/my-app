@@ -24,7 +24,7 @@ export default function Welcome() {
           <Text style={styles.eyebrow} testID="welcome-eyebrow">A SANCTUARY FOR YOUR SOUL</Text>
         </View>
         <View style={styles.center}>
-          <Text style={styles.title} testID="welcome-title">His Word</Text>
+          <Text style={styles.title} testID="welcome-title">Verse{'\n'}for That</Text>
           <Text style={styles.subtitle}>
             Bring your struggle. Receive the verse{'\n'}meant for this moment.
           </Text>
@@ -66,10 +66,12 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', paddingHorizontal: 8 },
   title: {
     fontFamily: fonts.serifBold,
-    fontSize: 64,
+    fontSize: 56,
+    lineHeight: 60,
     color: colors.textPrimary,
     letterSpacing: -1,
     marginBottom: 18,
+    textAlign: 'center',
   },
   subtitle: {
     fontFamily: fonts.sans,
