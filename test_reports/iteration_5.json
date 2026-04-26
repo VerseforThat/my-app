@@ -1,0 +1,38 @@
+{
+  "summary": "Iteration 5 retest after main agent applied the recommended _stripe_to_plain helper using _to_dict_recursive() at all 3 sites (raw event object + 2× sub_obj from stripe.Subscription.retrieve). FULL SUCCESS: 19/19 backend tests pass in 43.59s. The 5 previously-failing webhook flows all now flip user state correctly: customer.subscription.created (trialing → is_premium=true), customer.subscription.updated (active → is_premium=true), customer.subscription.deleted (canceled → is_premium=false). checkout.session.completed propagation also verified via test_already_active_user_cannot_checkout. No regressions in 14 baseline tests (auth/verse-match/quota/history/favorites/context-gating/tts/daily-verse/portal/legacy). Backend logs show clean 'Stripe webhook: <event_type>' lines with no AttributeError on .get() — the str-vs-dict bug is fully resolved.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "POST /api/webhook/stripe",
+        "issue": "Top-level try/except still returns 200 {received:true} on internal handler errors (no functional impact now that the deep-convert is fixed, but Stripe will not retry on legitimate downstream failures). Consider returning {received:true, processed:false, error:str(e)} or 5xx for visibility — non-blocking."
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3_subscription.py",
+    "/app/test_reports/pytest/iteration5_results.xml"
+  ],
+  "action_items": [
+    "None blocking — iteration 3 subscription feature is fully green. Optional polish: surface webhook handler errors instead of swallowing in top-level try/except."
+  ],
+  "critical_code_review_comments": [
+    "_stripe_to_plain helper at server.py:693 correctly prefers obj._to_dict_recursive() (the modern stripe SDK API), falls back to to_dict_recursive / to_dict, then dict(obj) + json.dumps(default=str) as last-resort. Applied at all 3 conversion sites (L741 raw event obj, L750 + L778 sub_obj from Subscription.retrieve). Idiomatic and safe across stripe SDK versions.",
+    "is_premium gating verified: trialing + active → True; canceled / free / incomplete → False (asserted by test_webhook_no_signature_dev_mode_accepts, test_webhook_subscription_updated_active, test_webhook_subscription_deleted, test_status_for_unpaid_session_does_not_grant_premium).",
+    "current_period_end correctly populated as Unix timestamp on trialing/active and unset/past on canceled.",
+    "No NameError or import errors; backend supervisord healthy throughout the run."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (19/19)", "frontend": "not retested (no frontend changes this iteration)"},
+  "seed_data_creation": "Pytest run created ~9 TEST_it3_*@hisword.com users + ~3 Stripe test customers + ~5 cs_test_ checkout sessions on user's sk_test_ account. Safe to leave (test-prefixed).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Iteration 3 subscription feature is fully verified at backend level (19/19 pytest green, no errors in backend logs). Frontend paywall copy was already verified in iteration 4. If next iteration touches anything in the webhook handler (server.py L693-790) or the checkout / portal endpoints, rerun pytest /app/backend/tests/test_iteration3_subscription.py — should stay 19/19. _stripe_to_plain helper is the canonical place to convert any stripe StripeObject to a plain dict; reuse it for any new event types.",
+  "rca_of_issue": "Fix that landed: server.py:693 _stripe_to_plain(obj) attempts (1) obj._to_dict_recursive() — the stripe>=7 SDK API, (2) obj.to_dict_recursive() / obj.to_dict() for older SDKs, (3) dict(obj) wrapped in json.dumps(default=str) as last resort. Previously json.dumps(stripe_obj, default=str) silently stringified the entire StripeObject because it is no longer a dict subclass, causing obj.get('metadata') → AttributeError('str' object has no attribute 'get'). The new helper returns a plain nested dict with metadata.user_id intact, so the webhook can correctly look up users and flip subscription_status / is_premium / current_period_end. Verified end-to-end via 5 webhook integration tests."
+}

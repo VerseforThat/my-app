@@ -690,6 +690,32 @@ async def start_trial(current_user: dict = Depends(get_current_user)):
     )
 
 
+def _stripe_to_plain(obj) -> dict:
+    """Convert a Stripe SDK StripeObject (or dict, or anything) into a plain recursive dict."""
+    if isinstance(obj, dict):
+        return obj
+    if hasattr(obj, "_to_dict_recursive"):
+        try:
+            return obj._to_dict_recursive()
+        except Exception:
+            pass
+    if hasattr(obj, "to_dict_recursive"):
+        try:
+            return obj.to_dict_recursive()
+        except Exception:
+            pass
+    if hasattr(obj, "to_dict"):
+        try:
+            return obj.to_dict()
+        except Exception:
+            pass
+    # last resort
+    try:
+        return json.loads(json.dumps(dict(obj), default=str))
+    except Exception:
+        return {}
+
+
 @api_router.post("/webhook/stripe")
 async def stripe_webhook(request: Request):
     body = await request.body()
@@ -712,11 +738,7 @@ async def stripe_webhook(request: Request):
 
     event_type = event["type"]
     raw_obj = event["data"]["object"]
-    # Deep-convert StripeObject to plain dict so chained .get works on nested fields
-    try:
-        obj = json.loads(json.dumps(raw_obj, default=str))
-    except Exception:
-        obj = dict(raw_obj) if hasattr(raw_obj, "keys") else {}
+    obj = _stripe_to_plain(raw_obj)
     logger.info(f"Stripe webhook: {event_type}")
 
     try:
@@ -725,7 +747,7 @@ async def stripe_webhook(request: Request):
             sub_id = obj.get("subscription")
             if user_id and sub_id:
                 sub_obj = await asyncio.to_thread(lambda: stripe.Subscription.retrieve(sub_id))
-                sub_dict = json.loads(json.dumps(sub_obj, default=str))
+                sub_dict = _stripe_to_plain(sub_obj)
                 await _apply_subscription_to_user(user_id, sub_dict)
                 await db.users.update_one({"id": user_id}, {"$set": {"first_payment_done": True}})
 
@@ -753,7 +775,7 @@ async def stripe_webhook(request: Request):
             sub_id = obj.get("subscription")
             if sub_id:
                 sub_obj = await asyncio.to_thread(lambda: stripe.Subscription.retrieve(sub_id))
-                sub_dict = json.loads(json.dumps(sub_obj, default=str))
+                sub_dict = _stripe_to_plain(sub_obj)
                 user_id = (sub_dict.get("metadata") or {}).get("user_id")
                 if not user_id and cust_id:
                     user = await db.users.find_one({"stripe_customer_id": cust_id}, {"_id": 0, "id": 1})
