@@ -7,11 +7,10 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { Sparkles, Check, X, BookOpen, Volume2, Share2, BookHeart } from 'lucide-react-native';
+import { Sparkles, Check, X, BookOpen, Volume2, Share2, BookHeart, Lock } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { api, formatError } from '../src/api';
 import { useAuth } from '../src/AuthContext';
@@ -28,23 +27,11 @@ const FEATURES = [
 export default function Paywall() {
   const router = useRouter();
   const { reason } = useLocalSearchParams<{ reason?: string }>();
-  const { user, refreshUser } = useAuth();
+  const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const onStartTrial = async () => {
-    setError('');
-    setBusy(true);
-    try {
-      await api.post('/subscription/start-trial');
-      await refreshUser();
-      router.replace('/(tabs)');
-    } catch (e: any) {
-      setError(formatError(e));
-    } finally {
-      setBusy(false);
-    }
-  };
+  const isFirstPayment = !user?.is_premium;
 
   const onSubscribe = async () => {
     setError('');
@@ -60,18 +47,16 @@ export default function Paywall() {
       } else {
         const result = await WebBrowser.openAuthSessionAsync(url, `${origin}/subscription/success`);
         if (result.type === 'success' && result.url) {
-          // parse session_id and refresh user
           const sid = new URL(result.url).searchParams.get('session_id');
           if (sid) router.replace({ pathname: '/subscription/success', params: { session_id: sid } });
         }
+        setBusy(false);
       }
     } catch (e: any) {
       setError(formatError(e));
       setBusy(false);
     }
   };
-
-  const trialUsed = user?.subscription_status !== 'free';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -113,54 +98,69 @@ export default function Paywall() {
           ))}
         </View>
 
+        {/* Pricing card */}
         <View style={styles.priceCard}>
-          <Text style={styles.priceEyebrow}>7-DAY FREE TRIAL · THEN</Text>
+          {isFirstPayment && (
+            <View style={styles.trialBadge}>
+              <Sparkles size={11} color={colors.bg} strokeWidth={1.8} />
+              <Text style={styles.trialBadgeText}>FIRST 7 DAYS ON US</Text>
+            </View>
+          )}
           <View style={styles.priceRow}>
             <Text style={styles.priceAmount}>$4.99</Text>
             <Text style={styles.pricePeriod}>/month</Text>
           </View>
-          <Text style={styles.priceNote}>Cancel anytime. No hidden fees.</Text>
+          {isFirstPayment ? (
+            <View style={styles.breakdown}>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>7-day free trial</Text>
+                <Text style={styles.breakdownValueFree}>FREE</Text>
+              </View>
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>30 days of premium</Text>
+                <Text style={styles.breakdownValue}>$4.99</Text>
+              </View>
+              <View style={styles.breakdownDivider} />
+              <View style={styles.breakdownRow}>
+                <Text style={[styles.breakdownLabel, styles.breakdownTotal]}>37 days for your first payment</Text>
+                <Text style={[styles.breakdownValue, styles.breakdownTotal]}>$4.99</Text>
+              </View>
+            </View>
+          ) : (
+            <Text style={styles.priceNote}>Each payment extends premium 30 days. Renew when ready — no auto-charge.</Text>
+          )}
         </View>
 
         {error ? <Text style={styles.error} testID="paywall-error">{error}</Text> : null}
 
-        {!trialUsed && (
-          <TouchableOpacity
-            style={[styles.primaryBtn, busy && { opacity: 0.6 }]}
-            onPress={onStartTrial}
-            disabled={busy}
-            testID="paywall-start-trial-btn"
-            activeOpacity={0.85}
-          >
-            {busy ? (
-              <ActivityIndicator color={colors.bg} />
-            ) : (
-              <Text style={styles.primaryBtnText}>Start 7-day free trial</Text>
-            )}
-          </TouchableOpacity>
-        )}
-
         <TouchableOpacity
-          style={[
-            trialUsed ? styles.primaryBtn : styles.secondaryBtn,
-            busy && { opacity: 0.6 },
-          ]}
+          style={[styles.primaryBtn, busy && { opacity: 0.6 }]}
           onPress={onSubscribe}
           disabled={busy}
           testID="paywall-subscribe-btn"
           activeOpacity={0.85}
         >
           {busy ? (
-            <ActivityIndicator color={trialUsed ? colors.bg : colors.textPrimary} />
+            <ActivityIndicator color={colors.bg} />
           ) : (
-            <Text style={trialUsed ? styles.primaryBtnText : styles.secondaryBtnText}>
-              Subscribe — $4.99/month
-            </Text>
+            <>
+              <Lock size={14} color={colors.bg} strokeWidth={1.8} />
+              <Text style={styles.primaryBtnText}>
+                {isFirstPayment ? 'Start 7-day free trial · $4.99' : 'Renew · $4.99 for 30 days'}
+              </Text>
+            </>
           )}
         </TouchableOpacity>
 
+        <View style={styles.secureRow}>
+          <Lock size={11} color={colors.textSecondary} strokeWidth={1.5} />
+          <Text style={styles.secureText}>Secure payment by Stripe · Cancel anytime</Text>
+        </View>
+
         <Text style={styles.fineprint}>
-          Subscription extends premium access by 30 days per payment. Renew when ready — no auto-charge.
+          {isFirstPayment
+            ? "Your $4.99 covers 37 days total — your first 7 are on us. After that, each $4.99 payment extends premium 30 days. No auto-renewal — you choose when to renew."
+            : "Each payment extends your premium access by 30 days. We'll never auto-charge — you renew when it's right for you."}
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -183,26 +183,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     marginBottom: 18,
   },
-  badgeText: {
-    fontFamily: fonts.sansSemi,
-    fontSize: 10,
-    letterSpacing: 1.8,
-    color: colors.bg,
-  },
-  title: {
-    fontFamily: fonts.serifBold,
-    fontSize: 38,
-    lineHeight: 44,
-    color: colors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  subtitle: {
-    fontFamily: fonts.sans,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.textSecondary,
-    marginTop: 14,
-  },
+  badgeText: { fontFamily: fonts.sansSemi, fontSize: 10, letterSpacing: 1.8, color: colors.bg },
+  title: { fontFamily: fonts.serifBold, fontSize: 38, lineHeight: 44, color: colors.textPrimary, letterSpacing: -0.5 },
+  subtitle: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 24, color: colors.textSecondary, marginTop: 14 },
   features: { marginBottom: 28, gap: 14 },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   featureIcon: {
@@ -220,53 +203,44 @@ const styles = StyleSheet.create({
     padding: 24,
     borderWidth: 1,
     borderColor: colors.border,
-    alignItems: 'center',
     marginBottom: 22,
   },
-  priceEyebrow: {
-    fontFamily: fonts.sansSemi,
-    fontSize: 10,
-    letterSpacing: 2.5,
-    color: colors.accent,
+  trialBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    backgroundColor: colors.accent,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radii.pill,
+    marginBottom: 12,
   },
-  priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 8 },
-  priceAmount: {
-    fontFamily: fonts.serifBold,
-    fontSize: 48,
-    color: colors.textPrimary,
-    letterSpacing: -1,
-  },
+  trialBadgeText: { fontFamily: fonts.sansSemi, fontSize: 10, letterSpacing: 1.5, color: colors.bg },
+  priceRow: { flexDirection: 'row', alignItems: 'baseline' },
+  priceAmount: { fontFamily: fonts.serifBold, fontSize: 48, color: colors.textPrimary, letterSpacing: -1 },
   pricePeriod: { fontFamily: fonts.sansMedium, fontSize: 15, color: colors.textSecondary, marginLeft: 4 },
-  priceNote: {
-    fontFamily: fonts.sans,
-    fontSize: 13,
-    color: colors.textSecondary,
-    marginTop: 8,
-  },
+  priceNote: { fontFamily: fonts.sans, fontSize: 13, color: colors.textSecondary, marginTop: 8, lineHeight: 19 },
+  breakdown: { marginTop: 16 },
+  breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
+  breakdownLabel: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary },
+  breakdownValue: { fontFamily: fonts.sansSemi, fontSize: 14, color: colors.textPrimary },
+  breakdownValueFree: { fontFamily: fonts.sansSemi, fontSize: 14, color: colors.interactive },
+  breakdownDivider: { height: 1, backgroundColor: colors.border, marginVertical: 6 },
+  breakdownTotal: { color: colors.textPrimary, fontFamily: fonts.sansSemi },
   error: { color: colors.error, fontFamily: fonts.sans, fontSize: 14, marginBottom: 12, textAlign: 'center' },
   primaryBtn: {
     backgroundColor: colors.textPrimary,
     borderRadius: radii.pill,
     paddingVertical: 18,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     marginBottom: 12,
   },
   primaryBtnText: { color: colors.bg, fontFamily: fonts.sansMedium, fontSize: 16, letterSpacing: 0.3 },
-  secondaryBtn: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.pill,
-    paddingVertical: 18,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: colors.textPrimary,
-  },
-  secondaryBtnText: { color: colors.textPrimary, fontFamily: fonts.sansMedium, fontSize: 16, letterSpacing: 0.3 },
-  fineprint: {
-    fontFamily: fonts.sans,
-    fontSize: 12,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    marginTop: 18,
-    lineHeight: 18,
-  },
+  secureRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 4, marginBottom: 14 },
+  secureText: { fontFamily: fonts.sans, fontSize: 12, color: colors.textSecondary },
+  fineprint: { fontFamily: fonts.sans, fontSize: 12, color: colors.textSecondary, textAlign: 'center', lineHeight: 18 },
 });

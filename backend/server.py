@@ -45,6 +45,7 @@ DEFAULT_VOICE_ID = "5gLuKtB16QIQv1vuSas1"
 SUBSCRIPTION_PRICE_USD = 4.99
 SUBSCRIPTION_DAYS = 30
 TRIAL_DAYS = 7
+FIRST_PAYMENT_DAYS = SUBSCRIPTION_DAYS + TRIAL_DAYS  # 37 days for first payment
 FREE_VERSES_LIFETIME = 3
 
 eleven_client = ElevenLabs(api_key=ELEVENLABS_API_KEY)
@@ -510,24 +511,11 @@ async def daily_verse():
 # ---------------- Routes: Subscription ----------------
 @api_router.post("/subscription/start-trial", response_model=UserResponse)
 async def start_trial(current_user: dict = Depends(get_current_user)):
-    if current_user.get("trial_used", False):
-        raise HTTPException(status_code=400, detail="Trial already used")
-    if is_user_premium(current_user):
-        raise HTTPException(status_code=400, detail="Already on premium")
-    end_dt = datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS)
-    await db.users.update_one(
-        {"id": current_user["id"]},
-        {"$set": {
-            "subscription_status": "trialing",
-            "current_period_end": end_dt.isoformat(),
-            "trial_used": True,
-            "trial_started_at": datetime.now(timezone.utc).isoformat(),
-        }},
+    # Card-free trials are no longer offered. The 7-day trial is bundled into the first $4.99 payment.
+    raise HTTPException(
+        status_code=400,
+        detail="Card-free trial is no longer available. Your first $4.99 payment includes a 7-day free trial.",
     )
-    current_user["subscription_status"] = "trialing"
-    current_user["current_period_end"] = end_dt.isoformat()
-    current_user["trial_used"] = True
-    return serialize_user(current_user)
 
 
 @api_router.post("/subscription/checkout")
@@ -542,6 +530,10 @@ async def create_subscription_checkout(
     success_url = f"{origin}/subscription/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{origin}/subscription/cancel"
 
+    # First payment grants 7 free trial days on top of the 30 paid days.
+    is_first_payment = not current_user.get("first_payment_done", False)
+    days_granted = FIRST_PAYMENT_DAYS if is_first_payment else SUBSCRIPTION_DAYS
+
     request = CheckoutSessionRequest(
         amount=SUBSCRIPTION_PRICE_USD,
         currency="usd",
@@ -551,7 +543,8 @@ async def create_subscription_checkout(
             "user_id": current_user["id"],
             "email": current_user["email"],
             "plan": "monthly_4_99",
-            "days_granted": str(SUBSCRIPTION_DAYS),
+            "days_granted": str(days_granted),
+            "is_first_payment": "true" if is_first_payment else "false",
         },
     )
     session = await stripe_checkout.create_checkout_session(request)
@@ -563,13 +556,17 @@ async def create_subscription_checkout(
         "email": current_user["email"],
         "amount": SUBSCRIPTION_PRICE_USD,
         "currency": "usd",
-        "metadata": {"plan": "monthly_4_99", "days_granted": SUBSCRIPTION_DAYS},
+        "metadata": {
+            "plan": "monthly_4_99",
+            "days_granted": days_granted,
+            "is_first_payment": is_first_payment,
+        },
         "payment_status": "initiated",
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
 
-    return {"url": session.url, "session_id": session.session_id}
+    return {"url": session.url, "session_id": session.session_id, "days_granted": days_granted}
 
 
 async def _grant_premium_for_user(user_id: str, days: int) -> None:
@@ -590,7 +587,11 @@ async def _grant_premium_for_user(user_id: str, days: int) -> None:
     new_end = (base + timedelta(days=days)).isoformat()
     await db.users.update_one(
         {"id": user_id},
-        {"$set": {"subscription_status": "active", "current_period_end": new_end}},
+        {"$set": {
+            "subscription_status": "active",
+            "current_period_end": new_end,
+            "first_payment_done": True,
+        }},
     )
 
 

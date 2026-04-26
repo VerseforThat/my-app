@@ -13,8 +13,10 @@ A spiritually-uplifting Bible verse companion mobile app. Users describe what's 
 
 ## Pricing & Access
 - **Free tier**: 3 lifetime verse matches
-- **7-day free trial**: backend-recorded (no card), one per user
-- **Premium**: $4.99 paid via Stripe Checkout, extends premium 30 days (re-pay each period)
+- **Paywall**: card required — single CTA "Start 7-day free trial · $4.99"
+- **First payment**: $4.99 → grants **37 days** of premium (7-day free trial + 30 paid days)
+- **Subsequent renewals**: $4.99 → grants **30 days** of premium
+- **No auto-renewal**: user manually pays again to extend (Emergent-managed Stripe doesn't support recurring subscriptions)
 - **Premium unlocks**: unlimited verse matches, "Read more context" surrounding verses, all save/share/voice features
 
 ## Features
