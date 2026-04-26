@@ -208,10 +208,10 @@ function SunGlow() {
             fx="50%"
             fy="22%"
           >
-            <Stop offset="0%" stopColor="#FFE7A8" stopOpacity="0.95" />
-            <Stop offset="35%" stopColor="#F6CE6E" stopOpacity="0.55" />
-            <Stop offset="65%" stopColor="#8B6F2F" stopOpacity="0.18" />
-            <Stop offset="100%" stopColor="#0B1426" stopOpacity="0" />
+            <Stop offset="0%" stopColor="#D4E4D4" stopOpacity="0.45" />
+            <Stop offset="35%" stopColor="#A8C2A8" stopOpacity="0.28" />
+            <Stop offset="65%" stopColor="#5C6B5C" stopOpacity="0.10" />
+            <Stop offset="100%" stopColor="#2C2C2C" stopOpacity="0" />
           </SvgRadialGradient>
         </Defs>
         <Rect x="0" y="0" width={SCREEN_W} height={SCREEN_H} fill="url(#sun)" />
@@ -314,9 +314,9 @@ export default function Welcome() {
     <View style={styles.root}>
       <StatusBar style="light" />
 
-      {/* Base vertical gradient: deep navy → indigo → amber → warm gold */}
+      {/* Base vertical gradient: warm charcoal → warm grey → soft sage (smooth, organic) */}
       <LinearGradient
-        colors={['#080F1F', '#0B1426', '#1A1B36', '#3B2E2A', '#7E5E22', '#C49234', '#F2C24F']}
+        colors={['#2C2C2C', '#333333', '#3D3D3D', '#4A4A4A', '#5C6B5C', '#789278', '#8FAF8F']}
         locations={[0, 0.18, 0.38, 0.55, 0.74, 0.88, 1]}
         start={{ x: 0.5, y: 1 }}
         end={{ x: 0.5, y: 0 }}
@@ -395,19 +395,19 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0B1426',
+    backgroundColor: '#2C2C2C',
     overflow: 'hidden',
   },
   cloud: {
     position: 'absolute',
-    backgroundColor: '#040813',
+    backgroundColor: '#1A1A1A',
   },
   particle: {
     position: 'absolute',
-    backgroundColor: '#FFF1B8',
-    shadowColor: '#FFE7A8',
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
+    backgroundColor: '#E8F0E8',
+    shadowColor: '#E8F0E8',
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
     shadowOffset: { width: 0, height: 0 },
   },
   appName: {
@@ -419,8 +419,8 @@ const styles = StyleSheet.create({
     fontFamily: fonts.serifBold,
     fontSize: 26,
     letterSpacing: 1.2,
-    color: '#F2C24F',
-    textShadowColor: 'rgba(255,210,120,0.35)',
+    color: '#B5CDB5',
+    textShadowColor: 'rgba(181,205,181,0.30)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
   },
@@ -436,13 +436,13 @@ const styles = StyleSheet.create({
   },
   heroLine: {
     textAlign: 'center',
-    color: '#FFFFFF',
+    color: '#F5F5F0',
   },
   heroWord: {
     fontFamily: fonts.serifBold,
     fontSize: 30,
     lineHeight: 42,
-    color: '#FFFFFF',
+    color: '#F5F5F0',
     letterSpacing: -0.3,
     textShadowColor: 'rgba(0,0,0,0.45)',
     textShadowOffset: { width: 0, height: 1 },
@@ -450,14 +450,14 @@ const styles = StyleSheet.create({
   },
   subLine: {
     textAlign: 'center',
-    color: 'rgba(255,255,255,0.92)',
+    color: 'rgba(245,245,240,0.92)',
   },
   subWord: {
     fontFamily: fonts.serif,
     fontStyle: 'italic',
     fontSize: 17,
     lineHeight: 26,
-    color: 'rgba(255,255,255,0.92)',
+    color: 'rgba(245,245,240,0.92)',
     textShadowColor: 'rgba(0,0,0,0.4)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 6,
@@ -481,16 +481,16 @@ const styles = StyleSheet.create({
     left: -8,
     right: -8,
     borderRadius: 999,
-    backgroundColor: 'rgba(255,255,255,0.35)',
+    backgroundColor: 'rgba(212,228,212,0.30)',
   },
   btn: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#D4E4D4',
     paddingVertical: 18,
     paddingHorizontal: 22,
     borderRadius: 999,
     alignItems: 'center',
     width: '100%',
-    shadowColor: '#FFFFFF',
+    shadowColor: '#D4E4D4',
     shadowOpacity: 0.4,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 0 },
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
   btnText: {
     fontFamily: fonts.sansMedium,
     fontSize: 15.5,
-    color: '#0B1426',
+    color: '#2C2C2C',
     letterSpacing: 0.3,
   },
 });
