@@ -53,7 +53,7 @@ You agree to:
 
 - Provide accurate, current information.
 - Keep your password confidential and not share your account with anyone.
-- Notify us promptly at **support@verseforthat.com** if you suspect unauthorized access.
+- Notify us promptly at **tapworksapp@gmail.com** if you suspect unauthorized access.
 
 You are responsible for all activity that occurs under your account.
 
@@ -129,7 +129,7 @@ A list of third-party services and the data we share with each is in our [Privac
 
 ## 11. Beta features
 
-From time to time, we may offer features that are clearly labeled "beta," "preview," or "experimental." These are provided **as-is**, may change or be removed without notice, and may not work as expected. We appreciate (but do not require) your feedback at **support@verseforthat.com**.
+From time to time, we may offer features that are clearly labeled "beta," "preview," or "experimental." These are provided **as-is**, may change or be removed without notice, and may not work as expected. We appreciate (but do not require) your feedback at **tapworksapp@gmail.com**.
 
 ---
 
@@ -159,7 +159,7 @@ You agree to defend, indemnify, and hold harmless Wendy Ardolino and her agents 
 
 ## 15. Termination
 
-You may delete your account at any time by contacting **support@verseforthat.com**. We may suspend or terminate your access to the App at any time for violation of these Terms, for legal reasons, or if we discontinue the service. Sections that by their nature should survive termination (including 6, 8, 9, 12, 13, 14, and 17) will survive.
+You may delete your account at any time by contacting **tapworksapp@gmail.com**. We may suspend or terminate your access to the App at any time for violation of these Terms, for legal reasons, or if we discontinue the service. Sections that by their nature should survive termination (including 6, 8, 9, 12, 13, 14, and 17) will survive.
 
 ---
 
@@ -171,9 +171,9 @@ We may update these Terms from time to time. The "Last updated" date will reflec
 
 ## 17. Governing law and dispute resolution
 
-These Terms are governed by the laws of the **State of [STATE TBD], United States**, without regard to its conflict-of-laws principles.
+These Terms are governed by the laws of the **State of Hawaii, United States**, without regard to its conflict-of-laws principles.
 
-Any dispute arising out of or related to these Terms or the App will be resolved exclusively in the state or federal courts located in **[COUNTY TBD], [STATE TBD]**, and you consent to personal jurisdiction in those courts. You and we both waive the right to a jury trial.
+Any dispute arising out of or related to these Terms or the App will be resolved exclusively in the state or federal courts located in **Honolulu County, Hawaii**, and you consent to personal jurisdiction in those courts. You and we both waive the right to a jury trial.
 
 If you reside in the European Economic Area, United Kingdom, Switzerland, or another jurisdiction whose mandatory consumer-protection laws would apply, nothing in this section limits the protections of those laws.
 
@@ -202,8 +202,7 @@ If you have questions about these Terms, please contact:
 
 **Verse for That**  
 Wendy Ardolino  
-Email: **support@verseforthat.com**  
-Mailing address: *(to be added on the published website)*
+Email: **tapworksapp@gmail.com**
 
 ---
 

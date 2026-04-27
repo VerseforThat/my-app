@@ -12,7 +12,7 @@ This Privacy Policy explains how **Verse for That** ("we," "us," "our," or "the 
 
 We built Verse for That to be a quiet, judgment-free space. We collect only what we need to make the App work, and we do not sell, rent, or share your personal information with advertisers. Ever.
 
-If you have any questions about this policy, contact us at **support@verseforthat.com**.
+If you have any questions about this policy, contact us at **tapworksapp@gmail.com**.
 
 ---
 
@@ -105,7 +105,7 @@ No system is 100% secure. We cannot guarantee absolute security, but we work har
 
 ## 6. Children's privacy
 
-Verse for That is intended for users aged 4 and older. We do not knowingly collect personal information from children under the age of 13 (or the equivalent minimum age in the relevant jurisdiction) without verifiable parental consent. If you believe a child has provided us with personal information without consent, please contact us at **support@verseforthat.com** and we will promptly delete it.
+Verse for That is intended for users aged 4 and older. We do not knowingly collect personal information from children under the age of 13 (or the equivalent minimum age in the relevant jurisdiction) without verifiable parental consent. If you believe a child has provided us with personal information without consent, please contact us at **tapworksapp@gmail.com** and we will promptly delete it.
 
 ---
 
@@ -115,7 +115,7 @@ Depending on your location, you may have the following rights:
 
 - **Access** — request a copy of the personal information we hold about you.
 - **Correction** — ask us to correct inaccurate information.
-- **Deletion** — ask us to delete your account and all associated personal data. To do so, email **support@verseforthat.com** from the email address on your account, or use the in-app "Sign out" button followed by an account-deletion request.
+- **Deletion** — ask us to delete your account and all associated personal data. To do so, email **tapworksapp@gmail.com** from the email address on your account, or use the in-app "Sign out" button followed by an account-deletion request.
 - **Data portability** — request a machine-readable export of your account data.
 - **Objection / restriction** — ask us to stop or limit certain uses of your data.
 - **Withdraw consent** — for processing that relies on consent (e.g. notifications, voice transcription), you may withdraw consent at any time by changing the relevant setting in the App or revoking permissions in your device settings.
@@ -164,8 +164,7 @@ If you have questions, requests, or complaints about this Privacy Policy or our 
 
 **Verse for That**  
 Wendy Ardolino  
-Email: **support@verseforthat.com**  
-Mailing address: *(to be added on the published website)*
+Email: **tapworksapp@gmail.com**
 
 ---
 
