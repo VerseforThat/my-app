@@ -39,6 +39,32 @@ function RootGate() {
   const segments = useSegments();
   const router = useRouter();
 
+  // Play the ElevenLabs ambient splash sound on cold launch (native only).
+  // Runs once per app start regardless of auth state. Respects persisted
+  // mute pref + iOS silent switch. Stops itself when the clip finishes.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const { startSplashSound, stopSplashSound } = await import(
+          '../src/splashSound'
+        );
+        if (cancelled) return;
+        await startSplashSound();
+        // Stop after ~14s so the audio session is freed even if user lingers.
+        setTimeout(() => stopSplashSound(), 14000);
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+      // Best-effort stop on unmount (rare — root rarely unmounts).
+      import('../src/splashSound')
+        .then((m) => m.stopSplashSound())
+        .catch(() => {});
+    };
+  }, []);
+
   useEffect(() => {
     if (loading) return;
     const inAuth = segments[0] === '(auth)';

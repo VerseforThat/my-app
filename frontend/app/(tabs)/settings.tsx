@@ -20,12 +20,14 @@ import {
   Check,
   ChevronRight,
   X,
+  Volume2,
 } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../src/AuthContext';
 import { api, formatError } from '../../src/api';
 import { colors, fonts, radii } from '../../src/theme';
 import { getItem, setItem } from '../../src/storage';
+import { isMuted as isSplashMuted, setMuted as setSplashMuted } from '../../src/splashSound';
 
 const DAILY_NOTIF_KEY = 'daily_notif_enabled';
 const DAILY_NOTIF_ID_KEY = 'daily_notif_id';
@@ -57,6 +59,7 @@ export default function Settings() {
   const [translationBusy, setTranslationBusy] = useState(false);
   const [translationError, setTranslationError] = useState('');
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [splashSoundOn, setSplashSoundOn] = useState(true);
 
   // Restore daily-notification toggle state on mount
   useEffect(() => {
@@ -65,8 +68,19 @@ export default function Settings() {
         const saved = await getItem(DAILY_NOTIF_KEY);
         if (saved === '1') setDailyOn(true);
       } catch {}
+      try {
+        const muted = await isSplashMuted();
+        setSplashSoundOn(!muted);
+      } catch {}
     })();
   }, []);
+
+  const onToggleSplashSound = async (value: boolean) => {
+    setSplashSoundOn(value);
+    try {
+      await setSplashMuted(!value);
+    } catch {}
+  };
 
   const onConfirmLogout = () => {
     if (Platform.OS === 'web') {
@@ -211,6 +225,23 @@ export default function Settings() {
             testID="daily-notification-switch"
           />
         </View>
+
+        {Platform.OS !== 'web' && (
+          <View style={styles.row} testID="setting-splash-sound">
+            <Volume2 size={18} color={colors.textPrimary} strokeWidth={1.5} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowTitle}>Opening ambient sound</Text>
+              <Text style={styles.rowSub}>A soft tone when you open the app. Respects your device's silent switch.</Text>
+            </View>
+            <Switch
+              value={splashSoundOn}
+              onValueChange={onToggleSplashSound}
+              trackColor={{ false: colors.surface, true: colors.interactive }}
+              thumbColor={colors.bg}
+              testID="splash-sound-switch"
+            />
+          </View>
+        )}
 
         <TouchableOpacity
           style={styles.row}

@@ -33,6 +33,8 @@ let activeSound: Audio.Sound | null = null;
 let fadeTimers: any[] = [];
 let stopped = false;
 
+const log = (...args: any[]) => console.log('[splashSound]', ...args);
+
 // ---- Helpers ------------------------------------------------------------
 const cachedFilePath = () =>
   `${FileSystem.cacheDirectory ?? ''}${CACHE_FILENAME}`;
@@ -113,7 +115,14 @@ export async function setMuted(value: boolean): Promise<void> {
 
 export async function startSplashSound(): Promise<void> {
   if (Platform.OS === 'web') return;
-  if (await isMuted()) return;
+  if (activeSound) {
+    log('start: already playing, skipping');
+    return;
+  }
+  if (await isMuted()) {
+    log('start: muted, skipping');
+    return;
+  }
 
   stopped = false;
 
@@ -127,8 +136,13 @@ export async function startSplashSound(): Promise<void> {
     });
   } catch {}
 
+  log('ensuring cached audio…');
   const uri = await ensureCachedAudio();
-  if (!uri || stopped) return;
+  if (!uri || stopped) {
+    log('no audio uri or stopped — abort');
+    return;
+  }
+  log('have audio at', uri);
 
   try {
     const { sound } = await Audio.Sound.createAsync(
@@ -144,9 +158,10 @@ export async function startSplashSound(): Promise<void> {
     activeSound = sound;
     await sound.setVolumeAsync(0);
     await sound.playAsync();
+    log('playing — fading in');
     fadeIn(sound);
   } catch (e) {
-    console.warn('[splashSound] playback failed', e);
+    log('playback failed', e);
   }
 }
 
