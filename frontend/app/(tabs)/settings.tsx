@@ -167,9 +167,9 @@ export default function Settings() {
                 {active && (
                   <View style={styles.checkDot}>
                     {translationBusy ? (
-                      <ActivityIndicator size="small" color={colors.bg} />
+                      <ActivityIndicator size="small" color={colors.interactiveText} />
                     ) : (
-                      <Check size={14} color={colors.bg} strokeWidth={2.5} />
+                      <Check size={14} color={colors.interactiveText} strokeWidth={2.5} />
                     )}
                   </View>
                 )}
@@ -244,10 +244,10 @@ const styles = StyleSheet.create({
   },
   avatar: {
     width: 54, height: 54, borderRadius: 27,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.interactive,
     alignItems: 'center', justifyContent: 'center',
   },
-  avatarText: { fontFamily: fonts.serifBold, fontSize: 24, color: colors.bg },
+  avatarText: { fontFamily: fonts.serifBold, fontSize: 24, color: colors.interactiveText },
   profileName: { fontFamily: fonts.sansSemi, fontSize: 18, color: colors.textPrimary },
   profileEmail: { fontFamily: fonts.sans, fontSize: 14, color: colors.textSecondary, marginTop: 2 },
   sectionLabel: {
@@ -271,13 +271,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   transRowActive: {
-    borderColor: colors.textPrimary,
-    backgroundColor: colors.bg,
+    borderColor: colors.interactive,
+    backgroundColor: colors.surfaceElevated,
   },
   transLabel: { fontFamily: fonts.sansMedium, fontSize: 15, color: colors.textPrimary },
   checkDot: {
     width: 24, height: 24, borderRadius: 12,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.interactive,
     alignItems: 'center', justifyContent: 'center',
   },
   row: {

@@ -151,11 +151,11 @@ export default function VersePlayer({ text }: Props) {
             activeOpacity={0.85}
           >
             {loading ? (
-              <ActivityIndicator color={colors.bg} />
+              <ActivityIndicator color={colors.interactiveText} />
             ) : playing ? (
-              <Pause size={22} color={colors.bg} strokeWidth={1.8} fill={colors.bg} />
+              <Pause size={22} color={colors.interactiveText} strokeWidth={1.8} fill={colors.interactiveText} />
             ) : (
-              <Play size={22} color={colors.bg} strokeWidth={1.8} fill={colors.bg} />
+              <Play size={22} color={colors.interactiveText} strokeWidth={1.8} fill={colors.interactiveText} />
             )}
           </TouchableOpacity>
         </View>
@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
     width: SIZE,
     height: SIZE,
     borderRadius: SIZE / 2,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.interactive,
     alignItems: 'center',
     justifyContent: 'center',
   },

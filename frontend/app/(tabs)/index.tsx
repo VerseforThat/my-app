@@ -326,11 +326,11 @@ export default function Home() {
                   >
                     <Heart
                       size={16}
-                      color={favorited ? colors.bg : colors.textPrimary}
+                      color={favorited ? colors.interactiveText : colors.textPrimary}
                       strokeWidth={1.8}
-                      fill={favorited ? colors.bg : 'transparent'}
+                      fill={favorited ? colors.interactiveText : 'transparent'}
                     />
-                    <Text style={[styles.favBtnText, favorited && { color: colors.bg }]}>
+                    <Text style={[styles.favBtnText, favorited && { color: colors.interactiveText }]}>
                       {favorited ? 'Saved' : 'Save'}
                     </Text>
                   </TouchableOpacity>
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   error: { color: colors.error, fontFamily: fonts.sans, fontSize: 14, marginTop: 12 },
   submitBtn: {
     marginTop: 22,
-    backgroundColor: colors.textPrimary,
+    backgroundColor: colors.interactive,
     borderRadius: radii.pill,
     paddingVertical: 18,
     alignItems: 'center',
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  submitBtnText: { color: colors.bg, fontFamily: fonts.sansMedium, fontSize: 16, letterSpacing: 0.3 },
+  submitBtnText: { color: colors.interactiveText, fontFamily: fonts.sansMedium, fontSize: 16, letterSpacing: 0.3 },
   resultSection: { paddingTop: 4 },
   youSaid: { fontFamily: fonts.sans, fontSize: 14, fontStyle: 'italic', color: colors.textSecondary, marginBottom: 28, lineHeight: 22 },
   verseText: { fontFamily: fonts.serif, fontSize: 26, lineHeight: 38, color: colors.textPrimary, letterSpacing: -0.2 },
@@ -515,9 +515,9 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: radii.pill,
     borderWidth: 1.5,
-    borderColor: colors.textPrimary,
+    borderColor: colors.interactive,
   },
-  favBtnActive: { backgroundColor: colors.textPrimary },
+  favBtnActive: { backgroundColor: colors.interactive },
   shareBtn: {
     flex: 1,
     flexDirection: 'row',
@@ -527,7 +527,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: radii.pill,
     borderWidth: 1.5,
-    borderColor: colors.textPrimary,
+    borderColor: colors.interactive,
   },
   favBtnText: { fontFamily: fonts.sansMedium, color: colors.textPrimary, fontSize: 15 },
   toast: {
