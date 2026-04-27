@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, BookHeart, Clock, Settings as SettingsIcon, Search } from 'lucide-react-native';
+import { Home, BookHeart, Clock, Settings as SettingsIcon, Search, NotebookPen } from 'lucide-react-native';
 import { Platform, StyleSheet } from 'react-native';
 import { colors, fonts } from '../../src/theme';
 
@@ -34,6 +34,13 @@ export default function TabsLayout() {
         options={{
           title: 'Saved',
           tabBarIcon: ({ color }) => <BookHeart size={22} color={color} strokeWidth={1.5} />,
+        }}
+      />
+      <Tabs.Screen
+        name="notes"
+        options={{
+          title: 'Notes',
+          tabBarIcon: ({ color }) => <NotebookPen size={22} color={color} strokeWidth={1.5} />,
         }}
       />
       <Tabs.Screen

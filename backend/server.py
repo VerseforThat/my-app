@@ -15,6 +15,7 @@ from routers import auth as auth_router
 from routers import verses as verses_router
 from routers import favorites as favorites_router
 from routers import tts as tts_router
+from routers import notes as notes_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -38,6 +39,7 @@ api_router.include_router(auth_router.router)
 api_router.include_router(verses_router.router)
 api_router.include_router(favorites_router.router)
 api_router.include_router(tts_router.router)
+api_router.include_router(notes_router.router)
 
 app.include_router(api_router)
 

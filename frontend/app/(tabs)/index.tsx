@@ -37,7 +37,7 @@ import {
 import { useAuth } from '../../src/AuthContext';
 import { colors, fonts, radii } from '../../src/theme';
 import VersePlayer from '../../src/VersePlayer';
-import { shareVerse } from '../../src/share';
+import { shareVerse, shareVerseImage } from '../../src/share';
 
 const QUICK_PROMPTS = [
   'Fear of being alone',
@@ -59,6 +59,7 @@ export default function Home() {
   const [savingFav, setSavingFav] = useState(false);
   const [daily, setDaily] = useState<DailyVerse | null>(null);
   const [shareToast, setShareToast] = useState('');
+  const shareCardRef = useRef<View | null>(null);
   const scrollRef = useRef<ScrollView | null>(null);
 
   // Sheet state
@@ -111,9 +112,14 @@ export default function Home() {
 
   const onShare = async () => {
     if (!match) return;
-    const ok = await shareVerse(match.reference, match.verse_text);
+    let ok = false;
+    if (shareCardRef.current) {
+      ok = await shareVerseImage(shareCardRef.current, match.reference, match.verse_text);
+    } else {
+      ok = await shareVerse(match.reference, match.verse_text);
+    }
     if (ok && Platform.OS === 'web') {
-      setShareToast('Copied to clipboard');
+      setShareToast('Image saved / copied');
       setTimeout(() => setShareToast(''), 1800);
     }
   };
@@ -165,7 +171,7 @@ export default function Home() {
   })();
 
   const sheetTitle = sheet === 'context'
-    ? 'Surrounding Context'
+    ? 'Read More of Chapter'
     : sheet === 'explanation'
       ? 'Deeper Explanation'
       : sheet === 'related'
@@ -203,6 +209,8 @@ export default function Home() {
                     </View>
                     <Text style={styles.dailyVerse}>{daily.verse_text}</Text>
                     <Text style={styles.dailyRef}>— {daily.reference}</Text>
+                    <View style={{ height: 14 }} />
+                    <VersePlayer text={`${daily.reference}. ${daily.verse_text}. ${daily.explanation}`} />
                   </View>
                 )}
 
@@ -285,7 +293,7 @@ export default function Home() {
                     activeOpacity={0.85}
                   >
                     <BookOpen size={20} color={colors.textPrimary} strokeWidth={1.5} />
-                    <Text style={styles.actionTileText}>Read more{'\n'}context</Text>
+                    <Text style={styles.actionTileText}>Read more{'\n'}of chapter</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.actionTile}
@@ -353,6 +361,17 @@ export default function Home() {
                 )}
               </View>
             )}
+
+            {/* Hidden, off-screen styled card used for image-share capture */}
+            {match && (
+              <View collapsable={false} ref={shareCardRef as any} style={styles.shareCard}>
+                <Text style={styles.shareCardEyebrow}>VERSE FOR THAT</Text>
+                <Text style={styles.shareCardVerse}>"{match.verse_text}"</Text>
+                <Text style={styles.shareCardRef}>— {match.reference}</Text>
+                <View style={styles.shareCardLine} />
+                <Text style={styles.shareCardFooter}>verseforthat</Text>
+              </View>
+            )}
           </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -384,13 +403,17 @@ export default function Home() {
               <>
                 <Text style={styles.modalRef}>{contextData.reference}</Text>
                 <Text style={styles.modalContext}>{contextData.context_text}</Text>
+                <View style={{ height: 24 }} />
+                <VersePlayer text={contextData.context_text} />
               </>
             )}
 
             {sheet === 'explanation' && deeperData && (
               <>
                 <Text style={styles.modalRef}>{deeperData.reference}</Text>
-                <Text style={styles.modalContext}>{deeperData.explanation}</Text>
+                <Text style={styles.modalReflection}>{deeperData.explanation}</Text>
+                <View style={{ height: 24 }} />
+                <VersePlayer text={deeperData.explanation} />
               </>
             )}
 
@@ -401,6 +424,8 @@ export default function Home() {
                     <Text style={styles.relatedRef}>{it.reference}</Text>
                     <Text style={styles.relatedVerse}>{it.verse_text}</Text>
                     <Text style={styles.relatedNote}>{it.note}</Text>
+                    <View style={{ height: 12 }} />
+                    <VersePlayer text={`${it.reference}. ${it.verse_text}`} />
                   </View>
                 ))}
               </>
@@ -539,7 +564,23 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: radii.pill,
   },
-  toastText: { color: colors.bg, fontFamily: fonts.sansMedium, fontSize: 13 },
+  toastText: { color: colors.textOnDark, fontFamily: fonts.sansMedium, fontSize: 13 },
+  // Hidden share card (off-screen) — captured to PNG when sharing
+  shareCard: {
+    position: 'absolute',
+    left: -10000,
+    top: 0,
+    width: 1080,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 80,
+    paddingVertical: 100,
+    alignItems: 'center',
+  },
+  shareCardEyebrow: { fontFamily: fonts.sansSemi, fontSize: 22, letterSpacing: 6, color: colors.accent },
+  shareCardVerse: { fontFamily: fonts.serif, fontSize: 64, lineHeight: 90, color: colors.textPrimary, textAlign: 'center', marginTop: 60 },
+  shareCardRef: { fontFamily: fonts.sansMedium, fontSize: 28, color: colors.accent, marginTop: 60, letterSpacing: 1 },
+  shareCardLine: { width: 80, height: 2, backgroundColor: colors.interactive, marginTop: 80 },
+  shareCardFooter: { fontFamily: fonts.serifBold, fontSize: 24, color: colors.textPrimary, marginTop: 30, letterSpacing: 4 },
   // Modal
   modalSafe: { flex: 1, backgroundColor: colors.bg },
   modalHeader: {
@@ -557,6 +598,7 @@ const styles = StyleSheet.create({
   modalLoading: { fontFamily: fonts.sans, color: colors.textSecondary, marginTop: 16 },
   modalRef: { fontFamily: fonts.sansSemi, fontSize: 13, letterSpacing: 1.5, color: colors.accent, marginBottom: 16 },
   modalContext: { fontFamily: fonts.serif, fontSize: 19, lineHeight: 30, color: colors.textPrimary },
+  modalReflection: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 27, color: colors.textAccent },
   relatedCard: {
     paddingVertical: 18,
     borderBottomWidth: 1,

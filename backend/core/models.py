@@ -89,6 +89,13 @@ class FavoriteCreate(BaseModel):
     match_id: str
 
 
+class SaveVerseRequest(BaseModel):
+    reference: str = Field(min_length=1, max_length=120)
+    verse_text: str = Field(min_length=1, max_length=4000)
+    note: Optional[str] = None
+    source: Optional[str] = None  # 'search' | 'daily' | 'related'
+
+
 class TTSRequest(BaseModel):
     text: str = Field(min_length=1, max_length=4000)
 
@@ -96,3 +103,17 @@ class TTSRequest(BaseModel):
 class TTSResponse(BaseModel):
     audio_base64: str
     mime_type: str = 'audio/mpeg'
+
+
+class NoteCreate(BaseModel):
+    text: Optional[str] = ''
+    audio_base64: Optional[str] = None
+    title: Optional[str] = None
+
+
+class Note(BaseModel):
+    id: str
+    text: str = ''
+    audio_base64: Optional[str] = None
+    title: Optional[str] = None
+    created_at: str

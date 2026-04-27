@@ -10,6 +10,7 @@ async def ensure_indexes() -> None:
     await db.verse_matches.create_index([('user_id', 1), ('created_at', -1)])
     await db.favorites.create_index([('user_id', 1), ('match_id', 1)], unique=True)
     await db.daily_verses.create_index('date', unique=True)
+    await db.notes.create_index([('user_id', 1), ('created_at', -1)])
 
 
 def close() -> None:

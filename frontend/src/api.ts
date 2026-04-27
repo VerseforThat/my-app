@@ -46,6 +46,13 @@ export type RelatedVerseItem = { reference: string; verse_text: string; note: st
 export type RelatedVerses = { items: RelatedVerseItem[] };
 export type VerseSearchItem = { reference: string; verse_text: string; note: string };
 export type VerseSearchResponse = { query: string; items: VerseSearchItem[] };
+export type Note = {
+  id: string;
+  text: string;
+  audio_base64?: string | null;
+  title?: string | null;
+  created_at: string;
+};
 
 export const formatError = (err: any): string => {
   const detail = err?.response?.data?.detail;

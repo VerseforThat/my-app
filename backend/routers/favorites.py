@@ -4,10 +4,51 @@ from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 
 from core.db import db
-from core.models import VerseMatch, FavoriteCreate
+from core.models import VerseMatch, FavoriteCreate, SaveVerseRequest
 from core.security import get_current_user
 
 router = APIRouter(tags=['favorites'])
+
+
+@router.post('/favorites/save-verse', response_model=VerseMatch)
+async def save_arbitrary_verse(
+    payload: SaveVerseRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Create a verse_match doc + favorite from arbitrary verse content.
+
+    Used when saving from the Search tab, daily verse card, related-verses
+    list, or anywhere else there isn't an existing match_id.
+    """
+    translation = current_user.get('bible_translation', 'NIV')
+    match_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    problem = f'Saved {payload.source or "verse"}: {payload.reference}'
+    doc = {
+        'id': match_id,
+        'user_id': current_user['id'],
+        'translation': translation,
+        'problem': problem,
+        'reference': payload.reference,
+        'verse_text': payload.verse_text,
+        'explanation': payload.note or '',
+        'created_at': now,
+    }
+    await db.verse_matches.insert_one(doc)
+    await db.favorites.insert_one({
+        'id': str(uuid.uuid4()),
+        'user_id': current_user['id'],
+        'match_id': match_id,
+        'created_at': now,
+    })
+    return VerseMatch(
+        id=match_id,
+        problem=problem,
+        reference=payload.reference,
+        verse_text=payload.verse_text,
+        explanation=payload.note or '',
+        created_at=now,
+    )
 
 
 @router.get('/history', response_model=List[VerseMatch])

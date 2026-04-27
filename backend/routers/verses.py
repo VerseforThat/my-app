@@ -84,6 +84,19 @@ async def _load_match(match_id: str, user_id: str) -> dict:
     return match
 
 
+@router.get('/verses/{match_id}', response_model=VerseMatch)
+async def get_verse(match_id: str, current_user: dict = Depends(get_current_user)):
+    match = await _load_match(match_id, current_user['id'])
+    return VerseMatch(
+        id=match['id'],
+        problem=match.get('problem', ''),
+        reference=match['reference'],
+        verse_text=match['verse_text'],
+        explanation=match.get('explanation', ''),
+        created_at=match['created_at'],
+    )
+
+
 @router.get('/verses/{match_id}/context', response_model=VerseContext)
 async def get_verse_context(match_id: str, current_user: dict = Depends(get_current_user)):
     match = await _load_match(match_id, current_user['id'])
