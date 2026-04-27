@@ -243,6 +243,39 @@ export default function Settings() {
 
         <Text style={styles.footer}>"Your word is a lamp for my feet, a light on my path."{'\n'}— Psalm 119:105</Text>
       </ScrollView>
+
+      {/* About modal */}
+      <Modal
+        visible={aboutOpen}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setAboutOpen(false)}
+      >
+        <SafeAreaView style={styles.modalSafe} edges={['top']}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>About Verse for That</Text>
+            <TouchableOpacity
+              onPress={() => setAboutOpen(false)}
+              style={styles.modalClose}
+              testID="about-close"
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <X size={22} color={colors.textPrimary} strokeWidth={1.8} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            contentContainerStyle={styles.modalScroll}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.aboutBody}>{ABOUT_FULL}</Text>
+            <View style={styles.aboutDivider} />
+            <Text style={styles.aboutFootnote}>
+              "Your word is a lamp for my feet, a light on my path."{'\n'}— Psalm 119:105
+            </Text>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -316,7 +349,48 @@ const styles = StyleSheet.create({
   logoutRow: { borderColor: colors.error + '33' },
   rowTitle: { fontFamily: fonts.sansMedium, fontSize: 15, color: colors.textPrimary },
   rowSub: { fontFamily: fonts.sans, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  readMore: { fontFamily: fonts.sansSemi, fontSize: 13, color: colors.interactive },
   error: { color: colors.error, fontFamily: fonts.sans, fontSize: 13, marginTop: 8 },
+  // About modal
+  modalSafe: { flex: 1, backgroundColor: colors.bg },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: { fontFamily: fonts.serifBold, fontSize: 22, color: colors.textPrimary, letterSpacing: -0.3 },
+  modalClose: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  modalScroll: { paddingHorizontal: 28, paddingTop: 24, paddingBottom: 60 },
+  aboutBody: {
+    fontFamily: fonts.serif,
+    fontSize: 17,
+    lineHeight: 28,
+    color: colors.textPrimary,
+  },
+  aboutDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 28,
+  },
+  aboutFootnote: {
+    fontFamily: fonts.serif,
+    fontStyle: 'italic',
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
   footer: {
     fontFamily: fonts.serif,
     fontSize: 14,
