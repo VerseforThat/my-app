@@ -325,9 +325,9 @@ frontend:
 
   - task: "POST /api/tts/sound-effect — ElevenLabs Sound Generation for splash ambient audio"
     implemented: true
-    working: false
+    working: true
     file: "backend/routers/tts.py"
-    stuck_count: 1
+    stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
@@ -367,6 +367,27 @@ frontend:
               (a) re-issue the ElevenLabs API key in the ElevenLabs dashboard with BOTH `text_to_speech` and `sound_generation` scopes checked, OR
               (b) provision a separate ElevenLabs key that has `sound_generation` and configure ELEVENLABS_SOUND_API_KEY in backend/.env, then update routers/tts.py to use it specifically for the sound-effect endpoint.
             Once the key permission is fixed, re-run /app/sound_effect_test.py — it will exercise the full happy path + cache hit + cache speedup assertions.
+        -working: true
+        -agent: "testing"
+        -comment: |
+          UNBLOCKED & FULLY PASSING after user enabled `sound_generation` scope on the ElevenLabs API key. Re-ran /app/sound_effect_test.py end-to-end against https://verse-match-5.preview.emergentagent.com/api. 8/8 checks pass.
+
+          ✅ No-auth: POST /api/tts/sound-effect (no Authorization header) -> HTTP 200 (not 401).
+          ✅ Happy path: POST with the meditation prompt {duration_seconds:12, loop:false, prompt_influence:0.4} -> 200 in 2.83s. audio_base64 length = 257,524 chars (~190KB raw mp3). mime_type = "audio/mpeg". Response shape exactly {audio_base64, mime_type}.
+          ✅ Cache hit: identical 2nd request -> 200 in 0.19s (15x faster than first). audio_base64 BYTE-IDENTICAL to first call (same_as_first=True, both 257,524 chars). Confirms in-memory cache at backend/routers/tts.py keyed by (text.strip(), duration_seconds or 0, bool(loop)) is working.
+          ✅ Validation: POST {} -> 422 with Pydantic detail "Field required" for body.text.
+          ✅ Regression /api/tts/generate (auth): login as test@hisword.com / faith123 -> 200, /tts/generate {"text":"Hello world"} -> 200 with audio_base64 length 19,008. Without Bearer -> 401. Existing TTS endpoint NOT regressed.
+
+          Timings summary:
+            • 1st sound-effect call (ElevenLabs upstream):  2.83s
+            • 2nd sound-effect call (server cache hit):     0.19s
+            • /tts/generate (TTS):                          ~0.8s
+
+          Audio sizes:
+            • Sound effect mp3 base64:  257,524 chars (~190KB raw mp3, 12s clip)
+            • TTS "Hello world" mp3:     19,008 chars (~14KB raw mp3)
+
+          Task is now fully verified working. Resetting stuck_count to 0.
 
 metadata:
   created_by: "main_agent"
@@ -375,8 +396,7 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "POST /api/tts/sound-effect — ElevenLabs Sound Generation for splash ambient audio"
+  current_focus: []
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -432,4 +452,20 @@ agent_communication:
         2) Add a separate ELEVENLABS_SOUND_API_KEY env var, configure a key with `sound_generation`, and have the sound-effect route use a second client.
 
       Once the key is updated, re-run /app/sound_effect_test.py (already written — exercises happy path, cache hit, cache speedup, validation, and regression in a single run).
+
+    -agent: "testing"
+    -message: |
+      RE-TEST AFTER ELEVENLABS KEY PERMISSION FIX — POST /api/tts/sound-effect now FULLY WORKING. 8/8 checks pass in /app/sound_effect_test.py.
+
+      Timings:
+        • 1st sound-effect call (real ElevenLabs upstream):  2.83s  (200, 257,524-char b64, audio/mpeg)
+        • 2nd identical call (in-memory cache hit):           0.19s  (byte-identical b64, ~15x faster)
+        • Validation {} -> 422 (Pydantic missing-field for body.text)
+        • Regression /api/tts/generate (auth, "Hello world"): 200 with 19,008-char b64; without auth -> 401
+
+      Audio sizes:
+        • Sound effect mp3 b64: 257,524 chars (~190KB raw mp3 for 12s clip)
+        • TTS mp3 b64:           19,008 chars (~14KB)
+
+      The endpoint is no-auth as designed, cache works, validation works, and existing TTS endpoint is not regressed. Updated task to working:true, stuck_count:0, cleared current_focus. No further backend retesting needed.
 
