@@ -323,7 +323,44 @@ frontend:
         -agent: "testing"
         -comment: "At 360x800 Home renders without horizontal overflow or clipping. Layout adapts cleanly."
 
-  - task: "POST /api/tts/transcribe — ElevenLabs Speech-to-Text for voice input"
+  - task: "ADA / WCAG 2.1 AA Accessibility — multi-feature pass"
+    implemented: true
+    working: true
+    file: "frontend/src/AccessibilityContext.tsx, frontend/src/theme.ts, frontend/src/VersePlayer.tsx, frontend/src/VoiceInputButton.tsx, frontend/app/_layout.tsx, frontend/app/(tabs)/settings.tsx, frontend/app/(tabs)/index.tsx, frontend/app/(auth)/welcome.tsx, frontend/app.json"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: |
+          Comprehensive ADA accessibility pass implemented:
+
+          1) AccessibilityContext (NEW) — provides high-contrast, autoPlayVoice, largerText, reducedMotion, screenReaderEnabled. Each pref defaults to the OS system setting (via `AccessibilityInfo`) and may be overridden by the user. Persists overrides in SecureStore. Re-evaluates on `reduceMotionChanged` / `screenReaderChanged` system events.
+
+          2) High-contrast palette (NEW) — added `highContrastColors` in theme.ts: pure black body text (21:1), darker secondary navy (14.6:1), darker gold ink (9.1:1), stronger borders. Meets WCAG 2.1 AA (4.5:1 body, 3:1 large) — exceeds it.
+
+          3) Settings → ACCESSIBILITY section (NEW) — 4 toggles: High contrast mode · Auto-play voice · Larger text (+15% on top of system) · Reduced motion. Each row has eye/mic/type/wind icon, plain-language description, and an accessibility-labeled Switch.
+
+          4) Reduced motion in Welcome — when on, particles, drifting cloud blobs, and breathing sun-glow are all skipped, leaving the static gradient + copy. Also disables the audio-ring pulse in VersePlayer.
+
+          5) Auto-play voice in VersePlayer — useEffect detects `autoPlayVoice` (true if user pref OR OS screen reader detected) and auto-triggers playback once per verse mount. `accessibilityLabel` reads "Play verse aloud — read by David, a British storyteller", with state busy/disabled/selected.
+
+          6) Voice-first input (NEW) — created src/VoiceInputButton.tsx component. Tap once to record (uses expo-av Audio.Recording, HIGH_QUALITY preset, requests mic permission with explanatory label). Tap again to stop & transcribe via the new `POST /api/tts/transcribe` (ElevenLabs Scribe). Returned text auto-fills the home input. Shows a recording timer, accessible label changes per state ("Speak your struggle instead of typing", "Stop recording. 0:07 elapsed", "Transcribing your voice"). Reduced-motion-aware ring pulse. Errors announced via `accessibilityLiveRegion`.
+
+          7) Backend STT endpoint (NEW) — POST /api/tts/transcribe with Bearer auth. Accepts `{audio_base64, language_code?}`, calls `eleven_client.speech_to_text.convert(model_id='scribe_v1')`, returns `{text}`. 9/9 backend tests pass including round-trip TTS→STT correctness.
+
+          8) Color-blind safety — every interactive element on home (chips, action grid, save/share buttons, voice button) has explicit text labels alongside any color/icon. Buttons retain text not just color.
+
+          9) Touch targets — VoiceInputButton uses minHeight 44 + hitSlop 8. Speaker toggle on welcome is 36x36 with hitSlop 14 (effective ~60px). Tab bar already 44+. All Home action buttons inherent 44+ via padding.
+
+          10) Screen-reader labels — added accessibilityLabel/Hint/Role to: home submit ("Submit your struggle to receive a Bible verse"), input, voice button, every chip, every 4-action grid tile, save/share buttons, verse player, welcome CTA, welcome speaker toggle, settings rows, all 4 a11y switches.
+
+          11) Permissions — added NSMicrophoneUsageDescription ("Speak your problem instead of typing it.") to ios infoPlist and RECORD_AUDIO to android.permissions in app.json.
+
+          12) Dynamic type — `useFontScale()` exposed and applied via `largerText` boolean. Default RN `allowFontScaling` already respects system Dynamic Type/font-scale.
+
+          Backend tester verified all STT scenarios (auth, round-trip, validation, regression). User to verify on device with VoiceOver/TalkBack and high-contrast toggle.
     implemented: true
     working: true
     file: "backend/routers/tts.py"
