@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -17,6 +18,8 @@ import {
   Heart,
   BookOpen,
   Check,
+  ChevronRight,
+  X,
 } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../src/AuthContext';
@@ -37,12 +40,23 @@ const TRANSLATION_LABEL: Record<Translation, string> = {
   KJV: 'KJV — King James Version',
 };
 
+// "About" copy ------------------------------------------------------------
+const ABOUT_PREVIEW = 'Life gets hard. Sometimes you\'re anxious, overwhelmed, grieving, or just feeling lost — and you need something to hold onto right now.';
+const ABOUT_FULL = `Life gets hard. Sometimes you're anxious, overwhelmed, grieving, or just feeling lost — and you need something to hold onto right now.
+
+Tell us what you're going through, in your own words, and we'll find the Bible verse that speaks directly to that moment — along with a quiet reflection on what it means and why it might help.
+
+You don't need to be religious. You don't need to know anything about the Bible. You just need to be honest about what you're feeling.
+
+Whoever you are, there's a verse for that.`;
+
 export default function Settings() {
   const { user, logout, refreshUser } = useAuth();
   const [dailyOn, setDailyOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [translationBusy, setTranslationBusy] = useState(false);
   const [translationError, setTranslationError] = useState('');
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   // Restore daily-notification toggle state on mount
   useEffect(() => {
@@ -198,13 +212,21 @@ export default function Settings() {
           />
         </View>
 
-        <View style={styles.row}>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => setAboutOpen(true)}
+          activeOpacity={0.7}
+          testID="about-row"
+        >
           <Heart size={18} color={colors.textPrimary} strokeWidth={1.5} />
           <View style={{ flex: 1 }}>
             <Text style={styles.rowTitle}>About Verse for That</Text>
-            <Text style={styles.rowSub}>A Bible verse companion for every season.</Text>
+            <Text style={styles.rowSub} numberOfLines={2}>
+              {ABOUT_PREVIEW} <Text style={styles.readMore}>Read more</Text>
+            </Text>
           </View>
-        </View>
+          <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
+        </TouchableOpacity>
 
         {/* Account */}
         <Text style={styles.sectionLabel}>ACCOUNT</Text>
