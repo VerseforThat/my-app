@@ -34,9 +34,9 @@ let fadeTimers: any[] = [];
 let stopped = false;
 
 const log = (...args: any[]) => {
-  // Use both console.log and console.warn so it shows in Expo's LogBox too.
-  try { console.log('[splashSound]', ...args); } catch {}
-  try { console.warn('[splashSound]', ...args); } catch {}
+  if (__DEV__) {
+    try { console.log('[splashSound]', ...args); } catch {}
+  }
 };
 
 // ---- Helpers ------------------------------------------------------------

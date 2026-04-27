@@ -388,6 +388,55 @@ frontend:
             • TTS "Hello world" mp3:     19,008 chars (~14KB raw mp3)
 
           Task is now fully verified working. Resetting stuck_count to 0.
+        -working: true
+        -agent: "user"
+        -comment: "User confirmed end-to-end on physical iPhone via Expo Go: ambient piano+pad fades in over 2s on cold launch. iOS hardware silent switch correctly suppresses playback (intentional, per user spec)."
+
+  - task: "Splash ambient sound integration on cold app launch (frontend)"
+    implemented: true
+    working: true
+    file: "frontend/src/splashSound.ts, frontend/app/_layout.tsx, frontend/app/(auth)/welcome.tsx, frontend/app/(tabs)/settings.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: |
+          Created src/splashSound.ts: idempotent module that fetches ambient sound from /api/tts/sound-effect on first run, caches mp3 to FileSystem.cacheDirectory/splash_ambient_v1.mp3, and plays from local file on subsequent launches. 2-second linear fade-in (0→1 in 20 steps via setVolumeAsync). Audio.setAudioModeAsync({ playsInSilentModeIOS: false }) so iOS silent switch mutes it as requested. Web is no-op.
+
+          RootGate in app/_layout.tsx now triggers startSplashSound() on mount via dynamic import — runs on every cold launch regardless of auth state. Auto-stops after 14s.
+
+          Welcome screen retains a discreet white speaker icon top-right (Volume2/VolumeX, 36×36, translucent white pill) for unauthenticated users.
+
+          Settings → Preferences has a permanent "Opening ambient sound" toggle (Switch). Both toggles share the same persisted SecureStore pref ('splash_sound_muted').
+        -working: true
+        -agent: "user"
+        -comment: "Verified working on iPhone via Expo Go after enabling the 'Sound Effects' permission and confirming silent switch is off. Diagnostic logs trimmed to __DEV__ only."
+
+  - task: "Copy update — Saved tab subtitle"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/favorites.tsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Replaced 'Tap to open. Tap the gold pill to listen in David's voice.' with 'Tap to open. Tap the gold button to listen.'"
+
+  - task: "About modal in Settings"
+    implemented: true
+    working: true
+    file: "frontend/app/(tabs)/settings.tsx"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: "Previous agent wired aboutOpen state + 'Read more' style references but never rendered the actual <Modal> JSX block. Added the Modal (slide pageSheet) with header, scrollable body, divider, and Psalm 119:105 footnote, plus the missing readMore/modal* styles. Verified visually via screenshot."
 
 metadata:
   created_by: "main_agent"
