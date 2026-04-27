@@ -32,6 +32,7 @@ const palette = {
   goldLight: '#F6D079',     // hover / active highlight
   goldPale: '#FFE7A8',      // soft halo / glow
   goldDeep: '#A87A24',      // pressed state
+  goldInk: '#6E4E14',       // dark, readable gold for body text
 
   // Splash gradient stops
   amberShadow: '#3B2E2A',
@@ -63,6 +64,7 @@ export const colors = {
   // Brand & interactive
   accent: palette.gold,                 // small accents — eyebrows, references
   accentHover: palette.goldDeep,
+  textAccent: palette.goldInk,          // dark, readable gold for accent body text
   interactive: palette.goldBright,      // primary button background
   interactiveHover: palette.goldLight,
   interactiveText: palette.navy,        // text/icons on top of `interactive`

@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   verseRef: { fontFamily: fonts.sansMedium, fontSize: 14, color: colors.accent, letterSpacing: 0.5, marginTop: 16 },
   divider: { height: 1, backgroundColor: colors.border, marginVertical: 28 },
   explanationLabel: { fontFamily: fonts.sansSemi, fontSize: 10, letterSpacing: 2.5, color: colors.accent, marginBottom: 12 },
-  explanation: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 27, color: colors.interactive },
+  explanation: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 27, color: colors.textAccent },
   actionGrid: {
     marginTop: 24,
     flexDirection: 'row',
