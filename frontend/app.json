@@ -11,7 +11,8 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "NSUserNotificationUsageDescription": "Receive a daily verse for reflection."
+        "NSUserNotificationUsageDescription": "Receive a daily verse for reflection.",
+        "NSMicrophoneUsageDescription": "Speak your problem instead of typing it."
       }
     },
     "android": {
@@ -21,7 +22,8 @@
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
-        "NOTIFICATIONS"
+        "NOTIFICATIONS",
+        "RECORD_AUDIO"
       ]
     },
     "web": {

@@ -21,6 +21,10 @@ import {
   ChevronRight,
   X,
   Volume2,
+  Eye,
+  Mic,
+  Type,
+  Wind,
 } from 'lucide-react-native';
 import * as Notifications from 'expo-notifications';
 import { useAuth } from '../../src/AuthContext';
@@ -28,6 +32,7 @@ import { api, formatError } from '../../src/api';
 import { colors, fonts, radii } from '../../src/theme';
 import { getItem, setItem } from '../../src/storage';
 import { isMuted as isSplashMuted, setMuted as setSplashMuted } from '../../src/splashSound';
+import { useAccessibility } from '../../src/AccessibilityContext';
 
 const DAILY_NOTIF_KEY = 'daily_notif_enabled';
 const DAILY_NOTIF_ID_KEY = 'daily_notif_id';
@@ -54,6 +59,8 @@ Whoever you are, there's a verse for that.`;
 
 export default function Settings() {
   const { user, logout, refreshUser } = useAuth();
+  const a11y = useAccessibility();
+  const colors = a11y.colors;
   const [dailyOn, setDailyOn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [translationBusy, setTranslationBusy] = useState(false);
@@ -248,6 +255,9 @@ export default function Settings() {
           onPress={() => setAboutOpen(true)}
           activeOpacity={0.7}
           testID="about-row"
+          accessibilityRole="button"
+          accessibilityLabel="About Verse for That"
+          accessibilityHint="Opens a description of the app"
         >
           <Heart size={18} color={colors.textPrimary} strokeWidth={1.5} />
           <View style={{ flex: 1 }}>
@@ -258,6 +268,79 @@ export default function Settings() {
           </View>
           <ChevronRight size={18} color={colors.textSecondary} strokeWidth={1.5} />
         </TouchableOpacity>
+
+        {/* Accessibility */}
+        <Text style={styles.sectionLabel} accessibilityRole="header">ACCESSIBILITY</Text>
+
+        <View style={styles.row} testID="setting-high-contrast">
+          <Eye size={18} color={colors.textPrimary} strokeWidth={1.5} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>High contrast mode</Text>
+            <Text style={styles.rowSub}>Stronger text and borders for easier reading.</Text>
+          </View>
+          <Switch
+            value={a11y.highContrast}
+            onValueChange={a11y.setHighContrast}
+            trackColor={{ false: colors.surface, true: colors.interactive }}
+            thumbColor={colors.bg}
+            testID="high-contrast-switch"
+            accessibilityLabel="High contrast mode"
+            accessibilityHint="Increases color contrast for better readability"
+          />
+        </View>
+
+        <View style={styles.row} testID="setting-auto-play">
+          <Mic size={18} color={colors.textPrimary} strokeWidth={1.5} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Auto-play voice</Text>
+            <Text style={styles.rowSub}>
+              Automatically read verses aloud. Defaults on when VoiceOver or TalkBack is detected.
+            </Text>
+          </View>
+          <Switch
+            value={a11y.autoPlayVoice}
+            onValueChange={a11y.setAutoPlayVoice}
+            trackColor={{ false: colors.surface, true: colors.interactive }}
+            thumbColor={colors.bg}
+            testID="auto-play-switch"
+            accessibilityLabel="Auto-play voice"
+            accessibilityHint="Automatically read verses aloud when they appear"
+          />
+        </View>
+
+        <View style={styles.row} testID="setting-larger-text">
+          <Type size={18} color={colors.textPrimary} strokeWidth={1.5} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Larger text</Text>
+            <Text style={styles.rowSub}>Adds extra size on top of your device's text size setting.</Text>
+          </View>
+          <Switch
+            value={a11y.largerText}
+            onValueChange={a11y.setLargerText}
+            trackColor={{ false: colors.surface, true: colors.interactive }}
+            thumbColor={colors.bg}
+            testID="larger-text-switch"
+            accessibilityLabel="Larger text"
+            accessibilityHint="Adds 15 percent extra size on top of system font scaling"
+          />
+        </View>
+
+        <View style={styles.row} testID="setting-reduced-motion">
+          <Wind size={18} color={colors.textPrimary} strokeWidth={1.5} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>Reduced motion</Text>
+            <Text style={styles.rowSub}>Skip animations on the welcome screen and audio player.</Text>
+          </View>
+          <Switch
+            value={a11y.reducedMotion}
+            onValueChange={a11y.setReducedMotion}
+            trackColor={{ false: colors.surface, true: colors.interactive }}
+            thumbColor={colors.bg}
+            testID="reduced-motion-switch"
+            accessibilityLabel="Reduced motion"
+            accessibilityHint="Disable animations and motion effects throughout the app"
+          />
+        </View>
 
         {/* Account */}
         <Text style={styles.sectionLabel}>ACCOUNT</Text>

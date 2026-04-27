@@ -11,16 +11,19 @@ import Animated, {
 import { Audio } from 'expo-av';
 import { api, formatError } from './api';
 import { colors, fonts } from './theme';
+import { useAccessibility } from './AccessibilityContext';
 
 type Props = { text: string };
 
 export default function VersePlayer({ text }: Props) {
+  const { reducedMotion, autoPlayVoice } = useAccessibility();
   const [loading, setLoading] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [error, setError] = useState('');
   const soundRef = useRef<Audio.Sound | null>(null);
   const webAudioRef = useRef<any>(null);
   const pulse = useSharedValue(1);
+  const autoPlayedRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -38,13 +41,13 @@ export default function VersePlayer({ text }: Props) {
   }, [text]);
 
   useEffect(() => {
-    if (playing) {
+    if (playing && !reducedMotion) {
       pulse.value = withRepeat(withTiming(1.18, { duration: 900 }), -1, true);
     } else {
       cancelAnimation(pulse);
       pulse.value = withTiming(1);
     }
-  }, [playing, pulse]);
+  }, [playing, pulse, reducedMotion]);
 
   const ringStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
@@ -92,6 +95,15 @@ export default function VersePlayer({ text }: Props) {
     });
     setPlaying(true);
   };
+
+  // Auto-play when accessibility prefers it (screen reader on or user pref).
+  useEffect(() => {
+    if (!autoPlayVoice || autoPlayedRef.current || playing || loading) return;
+    if (!text) return;
+    autoPlayedRef.current = true;
+    onToggle();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlayVoice, text]);
 
   const onToggle = async () => {
     setError('');
@@ -149,6 +161,16 @@ export default function VersePlayer({ text }: Props) {
             disabled={loading}
             testID="verse-play-pause-btn"
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={
+              loading
+                ? 'Preparing voice playback'
+                : playing
+                ? 'Pause verse audio'
+                : 'Play verse aloud — read by David, a British storyteller'
+            }
+            accessibilityHint="Reads this Bible verse to you using natural-sounding voice"
+            accessibilityState={{ busy: loading, disabled: loading, selected: playing }}
           >
             {loading ? (
               <ActivityIndicator color={colors.interactiveText} />

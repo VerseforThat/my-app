@@ -17,6 +17,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { AuthProvider, useAuth } from '../src/AuthContext';
+import { AccessibilityProvider } from '../src/AccessibilityContext';
 import { colors } from '../src/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -121,10 +122,12 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <AuthProvider>
-        <StatusBar style="dark" />
-        <RootGate />
-      </AuthProvider>
+      <AccessibilityProvider>
+        <AuthProvider>
+          <StatusBar style="dark" />
+          <RootGate />
+        </AuthProvider>
+      </AccessibilityProvider>
     </SafeAreaProvider>
   );
 }

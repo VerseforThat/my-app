@@ -122,6 +122,41 @@ export const colors = {
 } as const;
 
 // ---------------------------------------------------------------------------
+// High-contrast palette — meets WCAG 2.1 AA (>= 4.5:1 body, >= 3:1 large text).
+// Activated via AccessibilityContext when user enables High Contrast Mode.
+// ---------------------------------------------------------------------------
+export const highContrastColors = {
+  ...colors,
+  // Surfaces stay light but everything on top gets a stronger ink.
+  bg: '#FFFFFF',
+  surface: '#FFFFFF',
+  surfaceElevated: '#FFFFFF',
+  surfaceActive: '#F0EDE5',
+
+  // Text — pure black for body, very dark navy for secondary
+  textPrimary: '#000000',         // 21:1 on white
+  textSecondary: '#1A2336',       // 14.6:1 on white (was 5.6:1)
+  textDisabled: '#4A5470',        // 6.5:1
+  textOnDark: '#FFFFFF',
+
+  // Accents — darker, readable gold for any text use
+  accent: palette.goldDeep,       // 5.7:1 on white
+  textAccent: '#503812',          // 9.1:1 on white (very dark gold)
+  interactive: palette.goldBright,
+  interactiveText: '#000000',     // pure black on gold button = max readability
+  error: '#9B3535',               // 5.7:1
+
+  // Stronger borders to support contrast users
+  border: 'rgba(0, 0, 0, 0.32)',
+  borderStrong: 'rgba(0, 0, 0, 0.55)',
+} as const;
+
+// Helper — returns the active palette for a given high-contrast flag.
+export function getColors(highContrast: boolean) {
+  return highContrast ? highContrastColors : colors;
+}
+
+// ---------------------------------------------------------------------------
 // Typography — Cormorant Garamond serif + Outfit sans.
 // ---------------------------------------------------------------------------
 export const fonts = {

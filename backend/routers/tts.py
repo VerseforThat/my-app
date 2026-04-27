@@ -1,4 +1,5 @@
 import base64
+import io
 import logging
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
@@ -30,6 +31,16 @@ class SoundEffectRequest(BaseModel):
 class SoundEffectResponse(BaseModel):
     audio_base64: str
     mime_type: str = 'audio/mpeg'
+
+
+class STTRequest(BaseModel):
+    audio_base64: str
+    language_code: str | None = None  # e.g. "en"
+    file_format_hint: str | None = None  # e.g. "audio/m4a"
+
+
+class STTResponse(BaseModel):
+    text: str
 
 
 @router.post('/tts/generate', response_model=TTSResponse)
@@ -90,3 +101,43 @@ async def generate_sound_effect(payload: SoundEffectRequest):
     except Exception as e:
         logger.error(f'Sound effect generation failed: {e}')
         raise HTTPException(status_code=500, detail='Sound generation failed')
+
+
+@router.post('/tts/transcribe', response_model=STTResponse)
+async def transcribe_audio(
+    payload: STTRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Speech-to-Text — accepts a base64-encoded audio recording (m4a / mp4 /
+    wav etc.) from the client and returns transcribed text via ElevenLabs
+    Scribe. Used by the Home tab's microphone input for voice-first users."""
+    try:
+        try:
+            audio_bytes = base64.b64decode(payload.audio_base64)
+        except Exception:
+            raise HTTPException(status_code=400, detail='Invalid base64 audio')
+
+        if len(audio_bytes) < 200:
+            raise HTTPException(status_code=400, detail='Recording too short')
+
+        bio = io.BytesIO(audio_bytes)
+        bio.name = 'recording.m4a'  # ElevenLabs uses extension to detect format
+
+        kwargs: dict = {
+            'model_id': 'scribe_v1',
+            'file': bio,
+            'tag_audio_events': False,
+        }
+        if payload.language_code:
+            kwargs['language_code'] = payload.language_code
+
+        result = eleven_client.speech_to_text.convert(**kwargs)
+        text = getattr(result, 'text', None) or ''
+        if isinstance(text, str):
+            text = text.strip()
+        return STTResponse(text=text)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f'STT failed: {e}')
+        raise HTTPException(status_code=500, detail='Transcription failed')

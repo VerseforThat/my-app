@@ -38,6 +38,7 @@ import {
 import { useAuth } from '../../src/AuthContext';
 import { colors, fonts, radii } from '../../src/theme';
 import VersePlayer from '../../src/VersePlayer';
+import VoiceInputButton from '../../src/VoiceInputButton';
 import { shareVerse, shareVerseImage } from '../../src/share';
 
 const QUICK_PROMPTS = [
@@ -263,9 +264,24 @@ export default function Home() {
                     multiline
                     textAlignVertical="top"
                     testID="home-problem-input"
+                    accessibilityLabel="What's the problem you're trying to work through"
+                    accessibilityHint="Describe how you're feeling. We'll match a Bible verse to it."
                   />
 
-                  {error ? <Text style={styles.error} testID="home-error">{error}</Text> : null}
+                  <VoiceInputButton
+                    onTranscribed={(t) => setProblem((cur) => (cur ? `${cur} ${t}` : t))}
+                    disabled={loading}
+                  />
+
+                  {error ? (
+                    <Text
+                      style={styles.error}
+                      testID="home-error"
+                      accessibilityLiveRegion="polite"
+                    >
+                      {error}
+                    </Text>
+                  ) : null}
 
                   <TouchableOpacity
                     style={[styles.submitBtn, loading && { opacity: 0.6 }]}
@@ -273,6 +289,10 @@ export default function Home() {
                     disabled={loading}
                     testID="home-submit-btn"
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Submit your struggle to receive a Bible verse"
+                    accessibilityHint="Sends your problem to find a matching verse"
+                    accessibilityState={{ busy: loading, disabled: loading }}
                   >
                     {loading ? (
                       <ActivityIndicator color={colors.bg} />
@@ -288,7 +308,7 @@ export default function Home() {
                     Tap one of the options below or describe it in your own words.
                   </Text>
 
-                  <View style={styles.chips}>
+                  <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel="Quick problem suggestions">
                     {QUICK_PROMPTS.map((p) => (
                       <TouchableOpacity
                         key={p}
@@ -297,6 +317,9 @@ export default function Home() {
                         disabled={loading}
                         testID={`chip-${p.toLowerCase().replace(/\s+/g, '-')}`}
                         activeOpacity={0.7}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Find a verse for: ${p}`}
+                        accessibilityHint="Submits this problem and finds a Bible verse"
                       >
                         <Text style={styles.chipText}>{p}</Text>
                       </TouchableOpacity>
@@ -322,12 +345,15 @@ export default function Home() {
                 <VersePlayer text={`${match.verse_text}. ${match.explanation}`} />
 
                 {/* 4-action grid */}
-                <View style={styles.actionGrid}>
+                <View style={styles.actionGrid} accessibilityLabel="Verse actions" accessibilityRole="toolbar">
                   <TouchableOpacity
                     style={styles.actionTile}
                     onPress={() => openSheet('context')}
                     testID="action-context"
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Read more of the chapter"
+                    accessibilityHint="Opens the surrounding verses for context"
                   >
                     <BookOpen size={20} color={colors.textPrimary} strokeWidth={1.5} />
                     <Text style={styles.actionTileText}>Read more{'\n'}of chapter</Text>
@@ -337,6 +363,9 @@ export default function Home() {
                     onPress={() => openSheet('explanation')}
                     testID="action-explanation"
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Read a deeper explanation of this verse"
+                    accessibilityHint="Opens an in-depth interpretation of the verse"
                   >
                     <MessageSquareQuote size={20} color={colors.textPrimary} strokeWidth={1.5} />
                     <Text style={styles.actionTileText}>Deeper{'\n'}explanation</Text>
@@ -346,6 +375,9 @@ export default function Home() {
                     onPress={() => openSheet('related')}
                     testID="action-related"
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Find other relatable verses"
+                    accessibilityHint="Opens additional Bible verses on the same theme"
                   >
                     <ListPlus size={20} color={colors.textPrimary} strokeWidth={1.5} />
                     <Text style={styles.actionTileText}>Other relatable{'\n'}verses</Text>
@@ -355,6 +387,9 @@ export default function Home() {
                     onPress={onSearchAgain}
                     testID="action-search-again"
                     activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Search again with a different problem"
+                    accessibilityHint="Returns to the input to enter a new struggle"
                   >
                     <RefreshCcw size={20} color={colors.textPrimary} strokeWidth={1.5} />
                     <Text style={styles.actionTileText}>Search{'\n'}again</Text>
@@ -368,6 +403,10 @@ export default function Home() {
                     disabled={savingFav || favorited}
                     testID="verse-favorite-btn"
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel={favorited ? 'Verse saved to favorites' : 'Save this verse to favorites'}
+                    accessibilityHint="Adds this verse to your saved collection for later"
+                    accessibilityState={{ disabled: savingFav || favorited, selected: favorited }}
                   >
                     <Heart
                       size={16}
@@ -385,6 +424,9 @@ export default function Home() {
                     onPress={onShare}
                     testID="verse-share-btn"
                     activeOpacity={0.8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Share this verse as an image"
+                    accessibilityHint="Opens the share sheet to send a beautifully designed verse image"
                   >
                     <Share2 size={16} color={colors.textPrimary} strokeWidth={1.8} />
                     <Text style={styles.favBtnText}>Share</Text>

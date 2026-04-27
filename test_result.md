@@ -323,6 +323,54 @@ frontend:
         -agent: "testing"
         -comment: "At 360x800 Home renders without horizontal overflow or clipping. Layout adapts cleanly."
 
+  - task: "POST /api/tts/transcribe — ElevenLabs Speech-to-Text for voice input"
+    implemented: true
+    working: true
+    file: "backend/routers/tts.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: |
+          NEW authenticated endpoint POST /api/tts/transcribe.
+          Body: { audio_base64: str, language_code?: str, file_format_hint?: str }
+          Response: { text: str }
+          Powered by ElevenLabs `speech_to_text.convert(model_id='scribe_v1')`.
+          Required ElevenLabs key permission: "Speech to Text" (user has confirmed enabled).
+          Used by the new Home tab "Speak instead" button so users can dictate their problem.
+
+          Please verify:
+            (a) Endpoint REQUIRES auth — no Authorization header → 401.
+            (b) Happy path with a valid base64-encoded audio file → 200 + non-empty `text`.
+                Easiest way to test: synthesize speech via /api/tts/generate (which we already test),
+                base64-decode that mp3, re-base64 it, post to /api/tts/transcribe → expect transcribed text containing the original phrase.
+                A simple round-trip from "Hello world this is a test" should produce text containing those words.
+            (c) Invalid base64 → 400 "Invalid base64 audio".
+            (d) Tiny payload (<200 bytes after decode) → 400 "Recording too short".
+            (e) Regression: /api/tts/sound-effect and /api/tts/generate still work.
+        -working: true
+        -agent: "testing"
+        -comment: |
+          FULLY PASSING — 9/9 checks in /app/transcribe_test.py against https://verse-match-5.preview.emergentagent.com/api.
+
+          ✅ Auth required: POST /api/tts/transcribe with NO Authorization -> 401 {"detail":"Not authenticated"}.
+          ✅ Invalid base64: {"audio_base64":"not-valid-base64!!!"} (with auth) -> 400 {"detail":"Invalid base64 audio"}.
+          ✅ Too short: {"audio_base64":"aGk="} (decodes to "hi" = 2 bytes) -> 400 {"detail":"Recording too short"}.
+          ✅ Validation: POST {} (with auth) -> 422 with Pydantic detail "Field required" for body.audio_base64.
+          ✅ Happy path round-trip (REAL ElevenLabs, ran ONCE):
+              1) /api/tts/generate (auth) with text="Hello world this is a test" -> 200 in 0.78s, audio_base64 length 36,284.
+              2) /api/tts/transcribe (auth) with that audio_base64 + language_code="en" -> 200 in 0.45s.
+              3) Returned text = "hello world, this is a test." — contains both "hello" and "world" (case-insensitive). PASS.
+          ✅ Speech to Text permission on the ElevenLabs API key is correctly enabled — no missing_permissions error from upstream.
+
+          Regression checks (also passing):
+            ✅ POST /api/tts/sound-effect (no auth) — same meditation prompt as before -> 200, 257,524-char b64, mime audio/mpeg, 1st call 2.66s, 2nd identical call 0.22s (cache hit, byte-identical b64). Cache still works.
+            ✅ POST /api/tts/generate (auth) "Hello world" -> 200 with 20,120-char b64. Without auth -> 401.
+
+          No upstream errors observed. Endpoint is production-ready.
+
   - task: "POST /api/tts/sound-effect — ElevenLabs Sound Generation for splash ambient audio"
     implemented: true
     working: true
@@ -499,6 +547,26 @@ agent_communication:
       ACTION REQUIRED FOR MAIN AGENT — this is NOT a code bug. Either:
         1) Re-issue the ElevenLabs API key with BOTH `text_to_speech` AND `sound_generation` scopes enabled (preferred, single key), OR
         2) Add a separate ELEVENLABS_SOUND_API_KEY env var, configure a key with `sound_generation`, and have the sound-effect route use a second client.
+    -agent: "testing"
+    -message: |
+      POST /api/tts/transcribe (ElevenLabs Speech-to-Text) — FULLY PASSING. 9/9 checks in /app/transcribe_test.py against https://verse-match-5.preview.emergentagent.com/api.
+
+      ✅ Auth required: no Authorization -> 401 "Not authenticated".
+      ✅ Invalid base64 ("not-valid-base64!!!") -> 400 "Invalid base64 audio".
+      ✅ Too short ("aGk=" = "hi", 2 bytes) -> 400 "Recording too short".
+      ✅ Validation: {} -> 422 "Field required" for body.audio_base64.
+      ✅ Happy path round-trip (REAL ElevenLabs, ran ONCE):
+          • /api/tts/generate "Hello world this is a test" -> 200 in 0.78s, 36,284-char b64.
+          • /api/tts/transcribe with that b64 + language_code="en" -> 200 in 0.45s.
+          • text = "hello world, this is a test." (contains both 'hello' and 'world').
+      ✅ Speech to Text permission on the ElevenLabs API key is correctly enabled (no missing_permissions error). User confirmed enabled and confirmed by live test.
+
+      Regression also passing:
+        ✅ /api/tts/sound-effect (no auth) — same meditation prompt — 200, 257,524-char b64, audio/mpeg, 1st 2.66s, 2nd 0.22s with byte-identical b64 (cache hit).
+        ✅ /api/tts/generate (auth) "Hello world" -> 200, 20,120-char b64. Without auth -> 401.
+
+      No upstream errors. Updated task to working:true, needs_retesting:false. Cleared current_focus. No further backend retesting required.
+
 
       Once the key is updated, re-run /app/sound_effect_test.py (already written — exercises happy path, cache hit, cache speedup, validation, and regression in a single run).
 

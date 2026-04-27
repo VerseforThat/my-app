@@ -35,6 +35,7 @@ import {
   isMuted,
   setMuted,
 } from '../../src/splashSound';
+import { useAccessibility } from '../../src/AccessibilityContext';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -274,6 +275,9 @@ function PulsingButton({ onPress }: { onPress: () => void }) {
         onPress={onPress}
         style={({ pressed }) => [styles.btn, pressed && { opacity: 0.85 }]}
         testID="welcome-cta-btn"
+        accessibilityRole="button"
+        accessibilityLabel="Get started — tell us what you're going through"
+        accessibilityHint="Continues to sign up or sign in"
       >
         <Text style={styles.btnText}>{CTA_LABEL}</Text>
       </Pressable>
@@ -284,6 +288,7 @@ function PulsingButton({ onPress }: { onPress: () => void }) {
 // Main ---------------------------------------------------------------------
 export default function Welcome() {
   const router = useRouter();
+  const { reducedMotion } = useAccessibility();
 
   // Mute toggle for ambient splash sound (persisted across launches).
   const [muted, setMutedState] = useState(false);
@@ -368,16 +373,20 @@ export default function Welcome() {
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Radial sun glow at top — breathing */}
-      <SunGlow />
+      {/* Radial sun glow at top — breathing (skipped for reduced motion) */}
+      {!reducedMotion && <SunGlow />}
 
-      {/* Storm cloud blobs drifting horizontally */}
-      <Cloud top={SCREEN_H * 0.35} size={SCREEN_W * 1.3} baseX={-SCREEN_W * 0.2} amplitude={28} duration={11000} opacity={0.32} />
-      <Cloud top={SCREEN_H * 0.48} size={SCREEN_W * 1.05} baseX={-SCREEN_W * 0.05} amplitude={36} duration={14000} opacity={0.42} />
-      <Cloud top={SCREEN_H * 0.62} size={SCREEN_W * 1.4} baseX={-SCREEN_W * 0.25} amplitude={24} duration={17000} opacity={0.55} />
+      {/* Storm cloud blobs drifting horizontally (skipped for reduced motion) */}
+      {!reducedMotion && (
+        <>
+          <Cloud top={SCREEN_H * 0.35} size={SCREEN_W * 1.3} baseX={-SCREEN_W * 0.2} amplitude={28} duration={11000} opacity={0.32} />
+          <Cloud top={SCREEN_H * 0.48} size={SCREEN_W * 1.05} baseX={-SCREEN_W * 0.05} amplitude={36} duration={14000} opacity={0.42} />
+          <Cloud top={SCREEN_H * 0.62} size={SCREEN_W * 1.4} baseX={-SCREEN_W * 0.25} amplitude={24} duration={17000} opacity={0.55} />
+        </>
+      )}
 
-      {/* Light particles drifting upward */}
-      {particles.map((p) => (
+      {/* Light particles drifting upward (skipped for reduced motion) */}
+      {!reducedMotion && particles.map((p) => (
         <Particle key={p.id} {...p} />
       ))}
 
