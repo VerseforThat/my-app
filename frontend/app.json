@@ -1,24 +1,30 @@
 {
   "expo": {
     "name": "Verse for That",
-    "slug": "frontend",
+    "slug": "verse-for-that",
+    "owner": "wendyardolino",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "hisword",
+    "scheme": "verseforthat",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "ios": {
+      "bundleIdentifier": "com.verseforthat.app",
+      "buildNumber": "1",
       "supportsTablet": true,
       "infoPlist": {
         "NSUserNotificationUsageDescription": "Receive a daily verse for reflection.",
-        "NSMicrophoneUsageDescription": "Speak your problem instead of typing it."
+        "NSMicrophoneUsageDescription": "Speak your problem instead of typing it.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
+      "package": "com.verseforthat.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#FAF9F6"
+        "backgroundColor": "#F8F7F4"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -40,13 +46,18 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FAF9F6"
+          "backgroundColor": "#F8F7F4"
         }
       ],
       "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }
