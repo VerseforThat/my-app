@@ -323,6 +323,51 @@ frontend:
         -agent: "testing"
         -comment: "At 360x800 Home renders without horizontal overflow or clipping. Layout adapts cleanly."
 
+  - task: "POST /api/tts/sound-effect — ElevenLabs Sound Generation for splash ambient audio"
+    implemented: true
+    working: false
+    file: "backend/routers/tts.py"
+    stuck_count: 1
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: "NA"
+        -agent: "main"
+        -comment: |
+          NEW public (no-auth) endpoint POST /api/tts/sound-effect. Body schema:
+            { text: str, duration_seconds?: float, loop?: bool, prompt_influence?: float }
+          Response: { audio_base64: str, mime_type: 'audio/mpeg' }.
+          Powered by ElevenLabs SDK `text_to_sound_effects.convert()` with output_format='mp3_44100_128'.
+          Server-side caches the bytes per (text, duration, loop) tuple in process memory so repeat calls don't burn ElevenLabs credits — every device pulls the same ~mp3 after the first generation. Frontend then caches locally to avoid even re-fetching from backend.
+          Used by the Welcome splash screen with the meditation prompt.
+          Please verify:
+            (a) endpoint returns 200 + non-empty audio_base64 (>1KB) on first call,
+            (b) second identical call is faster (cache hit) and returns identical audio_base64,
+            (c) endpoint requires NO Authorization header (i.e. works unauthenticated),
+            (d) malformed body (missing `text`) → 422.
+          Use prompt: "A single soft piano note fading into a gentle warm ambient tone, minimal and calming, like the opening of a meditation session, peaceful and therapeutic" with duration_seconds=12.
+        -working: false
+        -agent: "testing"
+        -comment: |
+          BACKEND CODE IS CORRECT, BUT BLOCKED BY ELEVENLABS API KEY PERMISSIONS.
+
+          Tested live against https://verse-match-5.preview.emergentagent.com/api/tts/sound-effect.
+
+          ✅ PASS — No-auth: request WITHOUT Authorization header is NOT rejected with 401/403 (FastAPI route has no auth dependency, confirmed in code at backend/routers/tts.py:62 — no Depends(get_current_user)). Endpoint reaches the ElevenLabs call.
+          ✅ PASS — Validation: POST with empty body {} returns 422 with Pydantic 'missing field: text' detail.
+          ❌ FAIL — Happy path: POST with the meditation prompt returns HTTP 500 "Sound generation failed". Backend log (routers.tts ERROR) shows the ElevenLabs API responded with HTTP 401 and body:
+              {"detail":{"status":"missing_permissions","message":"The API key you used is missing the permission sound_generation to execute this operation."}}
+            i.e. the configured ELEVENLABS_API_KEY in backend/.env does NOT have the `sound_generation` scope enabled. The endpoint code itself is wired up correctly.
+          ⚠ BLOCKED — Server-side cache hit test: cannot be verified live until the upstream call succeeds. Code-review note: cache logic at backend/routers/tts.py:69-72 is correct — keys by (text.strip(), duration_seconds or 0, bool(loop)) and short-circuits before invoking ElevenLabs, so once the perms issue is fixed the cache will work.
+
+          ✅ Regression PASS — /api/tts/generate (auth, text-to-speech): login as test@hisword.com / faith123, call /tts/generate with {"text":"Hello world"} — returns 200 with audio_base64 length 18,448 and mime_type 'audio/mpeg' in ~0.78s. Without auth -> 401 (auth still enforced). So the EXISTING TTS endpoint is NOT regressed.
+
+          ACTION REQUIRED FOR MAIN AGENT:
+            The `text_to_speech` permission on the current ElevenLabs key works fine (proven by /tts/generate succeeding), but the `sound_generation` permission is missing from the same key. Either:
+              (a) re-issue the ElevenLabs API key in the ElevenLabs dashboard with BOTH `text_to_speech` and `sound_generation` scopes checked, OR
+              (b) provision a separate ElevenLabs key that has `sound_generation` and configure ELEVENLABS_SOUND_API_KEY in backend/.env, then update routers/tts.py to use it specifically for the sound-effect endpoint.
+            Once the key permission is fixed, re-run /app/sound_effect_test.py — it will exercise the full happy path + cache hit + cache speedup assertions.
+
 metadata:
   created_by: "main_agent"
   version: "2.0"
@@ -330,7 +375,8 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "POST /api/tts/sound-effect — ElevenLabs Sound Generation for splash ambient audio"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -364,4 +410,26 @@ agent_communication:
         Variety enforcement itself is correctly implemented; the failure is purely in JSON parsing reliability.
 
       Action: main agent should harden _claude_json, then re-run /api/verses/match repeat test. No frontend testing performed.
+
+    -agent: "testing"
+    -message: |
+      Tested POST /api/tts/sound-effect (splash ambient audio).
+
+      ✅ No-auth: endpoint accepts requests WITHOUT Authorization header (no 401/403). Code at backend/routers/tts.py has no Depends(get_current_user) on the route — confirmed.
+      ✅ Validation: empty body {} returns 422 with Pydantic missing-field detail for `text`.
+      ✅ Regression /api/tts/generate (auth): login as test@hisword.com / faith123, POST /tts/generate {"text":"Hello world"} -> 200, audio_base64 length 18,448, mime_type audio/mpeg, ~0.78s. Without Bearer -> 401. NOT regressed.
+
+      ❌ HAPPY PATH BLOCKED — ElevenLabs API key permission error:
+        POST /tts/sound-effect with the meditation prompt returns 500 "Sound generation failed".
+        Backend log shows ElevenLabs upstream returning HTTP 401:
+          {"status":"missing_permissions","message":"The API key you used is missing the permission sound_generation to execute this operation."}
+        The current ELEVENLABS_API_KEY only has the `text_to_speech` scope (proven by /tts/generate working). The `sound_generation` scope is required for `text_to_sound_effects.convert()`.
+
+      ⚠ Cache hit + cache speedup tests are BLOCKED on the same upstream key issue. Code-level review of the cache (backend/routers/tts.py:69-72, dict keyed by (text.strip(), duration_seconds or 0, bool(loop))) looks correct and will work once upstream succeeds.
+
+      ACTION REQUIRED FOR MAIN AGENT — this is NOT a code bug. Either:
+        1) Re-issue the ElevenLabs API key with BOTH `text_to_speech` AND `sound_generation` scopes enabled (preferred, single key), OR
+        2) Add a separate ELEVENLABS_SOUND_API_KEY env var, configure a key with `sound_generation`, and have the sound-effect route use a second client.
+
+      Once the key is updated, re-run /app/sound_effect_test.py (already written — exercises happy path, cache hit, cache speedup, validation, and regression in a single run).
 

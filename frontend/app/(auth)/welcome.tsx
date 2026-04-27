@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
+import { Volume2, VolumeX } from 'lucide-react-native';
 import Svg, {
   Defs,
   RadialGradient as SvgRadialGradient,
@@ -28,6 +29,12 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 import { fonts, colors } from '../../src/theme';
+import {
+  startSplashSound,
+  stopSplashSound,
+  isMuted,
+  setMuted,
+} from '../../src/splashSound';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -278,6 +285,45 @@ function PulsingButton({ onPress }: { onPress: () => void }) {
 export default function Welcome() {
   const router = useRouter();
 
+  // Mute toggle for ambient splash sound (persisted across launches).
+  const [muted, setMutedState] = useState(false);
+  const [muteHydrated, setMuteHydrated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const m = await isMuted();
+      if (cancelled) return;
+      setMutedState(m);
+      setMuteHydrated(true);
+      if (!m) {
+        // Fire-and-forget — fades in, fails silently if anything goes wrong.
+        startSplashSound();
+      }
+    })();
+    return () => {
+      cancelled = true;
+      stopSplashSound();
+    };
+  }, []);
+
+  const onToggleMute = async () => {
+    const next = !muted;
+    setMutedState(next);
+    await setMuted(next);
+    if (next) {
+      await stopSplashSound();
+    } else {
+      startSplashSound();
+    }
+  };
+
+  const onCtaPress = () => {
+    // Stop ambient sound before navigating away.
+    stopSplashSound();
+    router.push('/(auth)/signup');
+  };
+
   const particles = useMemo(
     () =>
       new Array(16).fill(0).map((_, i) => ({
@@ -385,8 +431,30 @@ export default function Welcome() {
 
       {/* CTA */}
       <View style={styles.bottom} pointerEvents="box-none">
-        <PulsingButton onPress={() => router.push('/(auth)/signup')} />
+        <PulsingButton onPress={onCtaPress} />
       </View>
+
+      {/* Discreet speaker toggle (top-right). Hidden until mute pref hydrates
+          to avoid a brief flash on the wrong icon. */}
+      {muteHydrated && Platform.OS !== 'web' && (
+        <Pressable
+          onPress={onToggleMute}
+          style={({ pressed }) => [
+            styles.speakerBtn,
+            pressed && { opacity: 0.6 },
+          ]}
+          hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+          accessibilityRole="button"
+          accessibilityLabel={muted ? 'Unmute ambient sound' : 'Mute ambient sound'}
+          testID="welcome-speaker-toggle"
+        >
+          {muted ? (
+            <VolumeX size={18} color="#FFFFFF" strokeWidth={1.6} />
+          ) : (
+            <Volume2 size={18} color="#FFFFFF" strokeWidth={1.6} />
+          )}
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -499,5 +567,18 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     color: colors.splash.buttonText,
     letterSpacing: 0.3,
+  },
+  speakerBtn: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    right: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
 });

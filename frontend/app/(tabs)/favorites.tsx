@@ -94,7 +94,7 @@ export default function Favorites() {
         <View style={styles.header}>
           <Text style={styles.eyebrow}>YOUR COLLECTION</Text>
           <Text style={styles.title}>Saved verses</Text>
-          <Text style={styles.subtitle}>Tap to open. Tap the gold pill to listen in David's voice.</Text>
+          <Text style={styles.subtitle}>Tap to open. Tap the gold button to listen.</Text>
         </View>
 
         {items.length === 0 ? (
