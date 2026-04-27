@@ -94,6 +94,7 @@ class SaveVerseRequest(BaseModel):
     verse_text: str = Field(min_length=1, max_length=4000)
     note: Optional[str] = None
     source: Optional[str] = None  # 'search' | 'daily' | 'related'
+    auto_favorite: bool = True    # if False, only create the match (used for "open without saving")
 
 
 class TTSRequest(BaseModel):

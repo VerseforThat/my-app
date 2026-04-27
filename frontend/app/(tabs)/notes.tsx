@@ -18,6 +18,7 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { Mic, MicOff, Play, Pause, Trash2, NotebookPen } from 'lucide-react-native';
 import { Audio } from 'expo-av';
+import * as FileSystem from 'expo-file-system/legacy';
 import { api, formatError, Note } from '../../src/api';
 import { colors, fonts, radii } from '../../src/theme';
 
@@ -154,10 +155,27 @@ export default function Notes() {
         setPlayingId(null);
         return;
       }
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: `data:audio/m4a;base64,${note.audio_base64}` },
-        { shouldPlay: true }
-      );
+      // Write base64 to a temp file — large data: URIs fail on iOS native via expo-av
+      let uri: string;
+      if (Platform.OS === 'web') {
+        uri = `data:audio/m4a;base64,${note.audio_base64}`;
+      } else {
+        const path = `${FileSystem.cacheDirectory}note-${note.id}.m4a`;
+        await FileSystem.writeAsStringAsync(path, note.audio_base64, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        uri = path;
+      }
+      // Make sure iOS plays in silent mode and through the speaker, not the earpiece
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: true,
+        });
+      } catch {}
+      const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
       soundRef.current = sound;
       setPlayingId(note.id);
       sound.setOnPlaybackStatusUpdate((s: any) => {
@@ -167,6 +185,7 @@ export default function Notes() {
         }
       });
     } catch (e) {
+      console.warn('playNote failed', e);
       setPlayingId(null);
     }
   };

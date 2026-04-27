@@ -35,12 +35,13 @@ async def save_arbitrary_verse(
         'created_at': now,
     }
     await db.verse_matches.insert_one(doc)
-    await db.favorites.insert_one({
-        'id': str(uuid.uuid4()),
-        'user_id': current_user['id'],
-        'match_id': match_id,
-        'created_at': now,
-    })
+    if payload.auto_favorite:
+        await db.favorites.insert_one({
+            'id': str(uuid.uuid4()),
+            'user_id': current_user['id'],
+            'match_id': match_id,
+            'created_at': now,
+        })
     return VerseMatch(
         id=match_id,
         problem=problem,

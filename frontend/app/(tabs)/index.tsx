@@ -25,6 +25,7 @@ import {
   ListPlus,
   RefreshCcw,
 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import {
   api,
   formatError,
@@ -50,6 +51,7 @@ const QUICK_PROMPTS = [
 type SheetKind = 'context' | 'explanation' | 'related' | null;
 
 export default function Home() {
+  const router = useRouter();
   const { user } = useAuth();
   const [problem, setProblem] = useState('');
   const [loading, setLoading] = useState(false);
@@ -69,6 +71,9 @@ export default function Home() {
   const [contextData, setContextData] = useState<VerseContext | null>(null);
   const [deeperData, setDeeperData] = useState<DeeperExplanation | null>(null);
   const [relatedItems, setRelatedItems] = useState<RelatedVerseItem[]>([]);
+  const [savedRelated, setSavedRelated] = useState<Set<string>>(new Set());
+  const [savingRelatedRef, setSavingRelatedRef] = useState<string | null>(null);
+  const [openingRelatedRef, setOpeningRelatedRef] = useState<string | null>(null);
 
   useEffect(() => {
     api.get<DailyVerse>('/daily-verse').then((res) => setDaily(res.data)).catch(() => {});
@@ -142,6 +147,7 @@ export default function Home() {
       } else if (kind === 'related') {
         const res = await api.get<{ items: RelatedVerseItem[] }>(`/verses/${match.id}/related`);
         setRelatedItems(res.data.items || []);
+        setSavedRelated(new Set());
       }
     } catch (e: any) {
       setSheetError(formatError(e));
@@ -153,6 +159,37 @@ export default function Home() {
   const closeSheet = () => {
     setSheet(null);
     setSheetError('');
+  };
+
+  const onSaveRelated = async (it: RelatedVerseItem) => {
+    if (savingRelatedRef) return;
+    setSavingRelatedRef(it.reference);
+    try {
+      await api.post('/favorites/save-verse', {
+        reference: it.reference,
+        verse_text: it.verse_text,
+        note: it.note,
+        source: 'related',
+        auto_favorite: true,
+      });
+      setSavedRelated((prev) => new Set(prev).add(it.reference));
+    } catch {} finally { setSavingRelatedRef(null); }
+  };
+
+  const onOpenRelated = async (it: RelatedVerseItem) => {
+    if (openingRelatedRef) return;
+    setOpeningRelatedRef(it.reference);
+    try {
+      const res = await api.post<{ id: string }>('/favorites/save-verse', {
+        reference: it.reference,
+        verse_text: it.verse_text,
+        note: it.note,
+        source: 'related',
+        auto_favorite: false,
+      });
+      closeSheet();
+      router.push(`/verse/${res.data.id}`);
+    } catch {} finally { setOpeningRelatedRef(null); }
   };
 
   const onSearchAgain = () => {
@@ -419,15 +456,51 @@ export default function Home() {
 
             {sheet === 'related' && relatedItems.length > 0 && (
               <>
-                {relatedItems.map((it, idx) => (
-                  <View key={`${it.reference}-${idx}`} style={styles.relatedCard}>
-                    <Text style={styles.relatedRef}>{it.reference}</Text>
-                    <Text style={styles.relatedVerse}>{it.verse_text}</Text>
-                    <Text style={styles.relatedNote}>{it.note}</Text>
-                    <View style={{ height: 12 }} />
-                    <VersePlayer text={`${it.reference}. ${it.verse_text}`} />
-                  </View>
-                ))}
+                {relatedItems.map((it, idx) => {
+                  const saved = savedRelated.has(it.reference);
+                  const opening = openingRelatedRef === it.reference;
+                  const savingNow = savingRelatedRef === it.reference;
+                  return (
+                    <TouchableOpacity
+                      key={`${it.reference}-${idx}`}
+                      style={styles.relatedCard}
+                      onPress={() => onOpenRelated(it)}
+                      disabled={opening}
+                      activeOpacity={0.85}
+                      testID={`related-card-${idx}`}
+                    >
+                      <View style={styles.relatedHeader}>
+                        <Text style={styles.relatedRef}>{it.reference}</Text>
+                        <TouchableOpacity
+                          onPress={(e) => { e.stopPropagation?.(); onSaveRelated(it); }}
+                          disabled={saved || savingNow}
+                          hitSlop={10}
+                          testID={`related-save-${idx}`}
+                        >
+                          {savingNow ? (
+                            <ActivityIndicator size="small" color={colors.accent} />
+                          ) : (
+                            <Heart
+                              size={20}
+                              color={saved ? colors.interactive : colors.textSecondary}
+                              fill={saved ? colors.interactive : 'transparent'}
+                              strokeWidth={1.6}
+                            />
+                          )}
+                        </TouchableOpacity>
+                      </View>
+                      <Text style={styles.relatedVerse}>{it.verse_text}</Text>
+                      <Text style={styles.relatedNote}>{it.note}</Text>
+                      <View style={{ height: 12 }} />
+                      <VersePlayer text={`${it.reference}. ${it.verse_text}`} />
+                      {opening && (
+                        <View style={styles.openingOverlay}>
+                          <ActivityIndicator color={colors.accent} />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
               </>
             )}
           </ScrollView>
@@ -604,7 +677,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  relatedRef: { fontFamily: fonts.sansSemi, fontSize: 12, letterSpacing: 1.5, color: colors.accent, marginBottom: 8 },
+  relatedHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  openingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  relatedRef: { fontFamily: fonts.sansSemi, fontSize: 12, letterSpacing: 1.5, color: colors.accent },
   relatedVerse: { fontFamily: fonts.serif, fontSize: 18, lineHeight: 28, color: colors.textPrimary },
   relatedNote: { fontFamily: fonts.sans, fontSize: 14, fontStyle: 'italic', color: colors.textSecondary, marginTop: 8, lineHeight: 20 },
 });
