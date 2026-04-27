@@ -14,6 +14,7 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BotanicalBackground from '../../src/BotanicalBackground';
 import {
   Heart,
   Sparkles,
@@ -218,6 +219,7 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <BotanicalBackground />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -444,6 +446,7 @@ export default function Home() {
             {/* Hidden, off-screen styled card used for image-share capture */}
             {match && (
               <View collapsable={false} ref={shareCardRef as any} style={styles.shareCard}>
+                <BotanicalBackground />
                 <Text style={styles.shareCardEyebrow}>VERSE FOR THAT</Text>
                 <Text style={styles.shareCardVerse}>"{match.verse_text}"</Text>
                 <Text style={styles.shareCardRef}>— {match.reference}</Text>
@@ -463,6 +466,7 @@ export default function Home() {
         onRequestClose={closeSheet}
       >
         <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
+          <BotanicalBackground />
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{sheetTitle}</Text>
             <TouchableOpacity onPress={closeSheet} hitSlop={10} testID="sheet-close-btn">

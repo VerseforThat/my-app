@@ -4,6 +4,7 @@ import {
   KeyboardAvoidingView, Platform, Keyboard, TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BotanicalBackground from '../../src/BotanicalBackground';
 import { Search as SearchIcon, Heart } from 'lucide-react-native';
 import { api, formatError, VerseSearchItem } from '../../src/api';
 import { colors, fonts, radii } from '../../src/theme';
@@ -52,6 +53,7 @@ export default function SearchScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <BotanicalBackground />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>

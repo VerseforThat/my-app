@@ -12,6 +12,7 @@ import {
   Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BotanicalBackground from '../../src/BotanicalBackground';
 import {
   LogOut,
   Bell,
@@ -162,6 +163,7 @@ export default function Settings() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <BotanicalBackground />
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Text style={styles.eyebrow}>YOUR SANCTUARY</Text>
@@ -366,6 +368,7 @@ export default function Settings() {
         onRequestClose={() => setAboutOpen(false)}
       >
         <SafeAreaView style={styles.modalSafe} edges={['top']}>
+          <BotanicalBackground />
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>About Verse for That</Text>
             <TouchableOpacity

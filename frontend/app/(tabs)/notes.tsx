@@ -14,6 +14,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BotanicalBackground from '../../src/BotanicalBackground';
 import { useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
 import { Mic, MicOff, Play, Pause, Trash2, NotebookPen } from 'lucide-react-native';
@@ -206,6 +207,7 @@ export default function Notes() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <BotanicalBackground />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

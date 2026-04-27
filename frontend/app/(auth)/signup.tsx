@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BotanicalBackground from '../../src/BotanicalBackground';
 import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import { useAuth } from '../../src/AuthContext';
@@ -47,6 +48,7 @@ export default function Signup() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <BotanicalBackground />
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

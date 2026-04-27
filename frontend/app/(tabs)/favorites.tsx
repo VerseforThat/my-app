@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BotanicalBackground from '../../src/BotanicalBackground';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Trash2, BookHeart, Play, Pause, Share2 } from 'lucide-react-native';
 import { Audio } from 'expo-av';
@@ -86,6 +87,7 @@ export default function Favorites() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <BotanicalBackground />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}

@@ -3,6 +3,7 @@ import {
   View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BotanicalBackground from '../../src/BotanicalBackground';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Clock, Heart, ChevronRight } from 'lucide-react-native';
 import { api, VerseMatch } from '../../src/api';
@@ -57,6 +58,7 @@ export default function History() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <BotanicalBackground />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}

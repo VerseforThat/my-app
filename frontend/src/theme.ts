@@ -50,8 +50,9 @@ const palette = {
 // ---------------------------------------------------------------------------
 export const colors = {
   // Surfaces
-  bg: palette.white,
+  bg: '#F8F7F4',                                  // soft warm off-white (botanical bg base)
   surface: palette.paper,
+  surfaceFrosted: 'rgba(255, 255, 255, 0.85)',    // frosted glass over botanical layer
   surfaceElevated: palette.white,
   surfaceActive: palette.paperDeep,
 

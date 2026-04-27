@@ -323,7 +323,28 @@ frontend:
         -agent: "testing"
         -comment: "At 360x800 Home renders without horizontal overflow or clipping. Layout adapts cleanly."
 
-  - task: "ADA / WCAG 2.1 AA Accessibility — multi-feature pass"
+  - task: "Botanical background — soft semi-transparent flowers across all screens"
+    implemented: true
+    working: true
+    file: "frontend/src/BotanicalBackground.tsx, frontend/src/theme.ts, frontend/app/(tabs)/*.tsx, frontend/app/(auth)/login.tsx, frontend/app/(auth)/signup.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        -working: true
+        -agent: "main"
+        -comment: |
+          Created src/BotanicalBackground.tsx — pure react-native-svg, hand-drawn rose-gold + sage botanicals on a warm off-white base (#F8F7F4):
+            • Top-left: cluster of 2 wildflower blossoms with stems & sage leaves
+            • Top-right: single curling leaf accent (asymmetric)
+            • Bottom-right: flowing botanical branch with leaves, larger blossom + smaller blossom + buds
+          All static, no animations. Opacities 10–13%. pointerEvents="none". Hidden from screen readers via accessibilityElementsHidden + importantForAccessibility="no-hide-descendants".
+
+          Theme update: colors.bg #FAF9F6 → #F8F7F4; added colors.surfaceFrosted = rgba(255,255,255,0.85) token for any future frosted-glass card needs (existing cards remain solid white #FFFFFF and look beautifully crisp over the botanical layer per spec — never placed behind content).
+
+          Mounted as the first child inside every SafeAreaView for: Home, Search, Saved (Favorites), Notes, History, Settings, Login, Signup — 8 screens. Also mounted inside the Home sub-screen Modal (Read more chapter / Deeper explanation / Other relatable verses), the Settings About modal, and the off-screen 1080px share-image card so shared PNGs carry the same warm botanical styling.
+
+          Verified visually: every tab + modal renders soft botanical edges in corners only, text + cards sit crisply above, and the warm cream base replaces the previous clinical white — premium therapeutic-journal aesthetic per the user's Calm/Headspace × botanical-stationery brief.
     implemented: true
     working: true
     file: "frontend/src/AccessibilityContext.tsx, frontend/src/theme.ts, frontend/src/VersePlayer.tsx, frontend/src/VoiceInputButton.tsx, frontend/app/_layout.tsx, frontend/app/(tabs)/settings.tsx, frontend/app/(tabs)/index.tsx, frontend/app/(auth)/welcome.tsx, frontend/app.json"
