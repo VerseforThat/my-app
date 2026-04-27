@@ -33,7 +33,11 @@ let activeSound: Audio.Sound | null = null;
 let fadeTimers: any[] = [];
 let stopped = false;
 
-const log = (...args: any[]) => console.log('[splashSound]', ...args);
+const log = (...args: any[]) => {
+  // Use both console.log and console.warn so it shows in Expo's LogBox too.
+  try { console.log('[splashSound]', ...args); } catch {}
+  try { console.warn('[splashSound]', ...args); } catch {}
+};
 
 // ---- Helpers ------------------------------------------------------------
 const cachedFilePath = () =>
