@@ -1,0 +1,60 @@
+# =============================================================================
+# Verse for That — Deploy LEGAL SITE ONLY to GitHub Pages.
+#
+# Repo:        github.com/VerseforThat/my-app
+# Site URL:    https://verseforthat.github.io/my-app/
+#
+# This is the SAFE option for a paid mobile app: it publishes only the
+# privacy policy / terms of service / landing page — NOT the full Expo
+# web build, so the app cannot be played for free in a browser.
+#
+# Use this workflow if your repo's purpose is just hosting your legal site.
+# If you ever decide to publish the Expo web build too, swap this file for
+# the more comprehensive `deploy.yml` (also in this folder).
+#
+# What it does
+#   On every push to main, package the static HTML + assets at the repo
+#   root and deploy them to GitHub Pages. No build step needed because the
+#   pages are pre-rendered.
+# =============================================================================
+
+name: Deploy legal site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload the entire repo root as-is. If you keep your HTML inside
+          # a subfolder (e.g. "site/"), change this to:  path: site
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

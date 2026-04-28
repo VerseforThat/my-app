@@ -10,7 +10,7 @@
 
 These Terms of Service ("**Terms**") are a contract between you and **Wendy Ardolino**, the operator of the **Verse for That** mobile application (the "**App**"). They govern your use of the App and any related services we provide.
 
-By creating an account, downloading, installing, or using the App you confirm that you have read, understood, and agree to be bound by these Terms and by our [Privacy Policy](https://wendyardolino.github.io/my-app/privacy.html). If you do not agree, please do not use the App.
+By creating an account, downloading, installing, or using the App you confirm that you have read, understood, and agree to be bound by these Terms and by our [Privacy Policy](https://verseforthat.github.io/my-app/privacy.html). If you do not agree, please do not use the App.
 
 ---
 
@@ -123,7 +123,7 @@ You may not copy, modify, distribute, or create derivative works of the App with
 
 The App relies on third-party providers (Anthropic, ElevenLabs, MongoDB Atlas, Apple, Google, Expo) to operate. By using the App you acknowledge that interruptions, errors, or changes from those providers may temporarily affect the App. We are not responsible for outages or actions by third-party providers, but we will use reasonable efforts to restore service.
 
-A list of third-party services and the data we share with each is in our [Privacy Policy](https://wendyardolino.github.io/my-app/privacy.html).
+A list of third-party services and the data we share with each is in our [Privacy Policy](https://verseforthat.github.io/my-app/privacy.html).
 
 ---
 

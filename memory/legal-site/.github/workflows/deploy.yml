@@ -1,0 +1,130 @@
+# =============================================================================
+# Verse for That — Build & deploy the Expo web frontend (+ legal pages) to
+# GitHub Pages.
+#
+# Repo:        github.com/VerseforThat/my-app
+# Site URL:    https://verseforthat.github.io/my-app/
+#
+# What this workflow does
+#   1. On a push to main (or a manual trigger), checks out the repo.
+#   2. Installs Node + Yarn, restores caches.
+#   3. Runs `npx expo export --platform web` to compile the Expo Router app
+#      into static HTML/JS/CSS in ./dist.
+#   4. Copies the static legal pages from /legal-site over the output so
+#      /privacy.html and /terms.html keep working at the same domain.
+#   5. Uploads the result and deploys to GitHub Pages via the official actions.
+#
+# IMPORTANT — paid-app caveat
+#   Verse for That is a paid mobile app. Publishing the full web build means
+#   the app is also playable for free in a browser. To prevent accidental
+#   deploys, this workflow is set to "workflow_dispatch" by default — it only
+#   runs when YOU click "Run workflow" in the Actions tab. If you want every
+#   push to main to deploy automatically, uncomment the `push:` block below.
+#
+# Required GitHub secrets (Settings → Secrets and variables → Actions → New)
+#   EXPO_PUBLIC_BACKEND_URL  – Your production FastAPI URL (e.g.
+#                              https://api.verseforthat.com).
+#                              The web app will call /api/* on this host.
+#
+# Required app.json change for sub-path hosting at /my-app/
+#   Add this inside `expo.experiments`:
+#     "baseUrl": "/my-app"
+#   Without it, JS/CSS asset URLs will be wrong on the deployed site.
+# =============================================================================
+
+name: Deploy to GitHub Pages
+
+on:
+  # Manual deploy only — click "Run workflow" in the Actions tab.
+  workflow_dispatch:
+
+  # Uncomment this block if you want every push to main to auto-deploy.
+  # push:
+  #   branches: [main]
+
+# Allow only one concurrent deploy; cancel any in progress so the latest wins.
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+# Permissions required by the official GitHub Pages deploy actions.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 1) BUILD — install deps, export Expo web, layer in legal pages
+  # --------------------------------------------------------------------------
+  build:
+    name: Build Expo web + legal pages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          # If your project uses npm instead of yarn, change `cache: yarn` to
+          # `cache: npm` and replace the install step below with `npm ci`.
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Verify Expo project
+        run: |
+          if [ ! -f app.json ] && [ ! -f frontend/app.json ]; then
+            echo "::error::Could not find app.json in repo root or ./frontend"
+            exit 1
+          fi
+
+      - name: Export Expo web build
+        env:
+          EXPO_PUBLIC_BACKEND_URL: ${{ secrets.EXPO_PUBLIC_BACKEND_URL }}
+        run: |
+          # If your Expo project is in ./frontend (not repo root), uncomment:
+          # cd frontend
+          npx expo export --platform web --output-dir dist
+
+      - name: Layer in static legal pages
+        # Copies legal-site/*.html (and .nojekyll) into the dist root so
+        # /privacy.html, /terms.html, and / (legal landing) are served.
+        # Files are only overwritten if they exist in /legal-site.
+        run: |
+          if [ -d legal-site ]; then
+            cp -v legal-site/*.html dist/ 2>/dev/null || true
+            cp -v legal-site/.nojekyll dist/ 2>/dev/null || true
+            echo "Legal pages merged into dist/"
+          else
+            echo "No /legal-site folder found — skipping legal page overlay."
+          fi
+          touch dist/.nojekyll
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  # --------------------------------------------------------------------------
+  # 2) DEPLOY — publish the artifact to GitHub Pages
+  # --------------------------------------------------------------------------
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

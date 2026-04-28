@@ -261,9 +261,9 @@ Static legal & privacy site for the **Verse for That** mobile app, hosted on Git
 
 **Live URLs**
 
-- Home: https://wendyardolino.github.io/my-app/
-- Privacy Policy: https://wendyardolino.github.io/my-app/privacy.html
-- Terms of Service: https://wendyardolino.github.io/my-app/terms.html
+- Home: https://verseforthat.github.io/my-app/
+- Privacy Policy: https://verseforthat.github.io/my-app/privacy.html
+- Terms of Service: https://verseforthat.github.io/my-app/terms.html
 
 ## What's here
 
