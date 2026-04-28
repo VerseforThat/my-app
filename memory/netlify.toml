@@ -1,0 +1,67 @@
+# =============================================================================
+# Netlify configuration for Verse for That web build
+#
+# This file goes at the ROOT of your GitHub repo (one level above /frontend).
+# It tells Netlify to:
+#   1. cd into ./frontend
+#   2. Install JS deps with yarn
+#   3. Run `yarn build` (which now exists in package.json)
+#   4. Publish ./frontend/dist (the Expo web export output)
+# =============================================================================
+
+[build]
+  # The folder where commands run. Your Expo project lives in ./frontend.
+  base = "frontend"
+
+  # The build command — runs after Netlify CDs into `base`.
+  command = "yarn build"
+
+  # The folder Netlify will publish — relative to repo root, NOT to `base`.
+  publish = "frontend/dist"
+
+[build.environment]
+  # Pin Node so Expo's Metro bundler is happy.
+  NODE_VERSION = "20"
+
+  # Yarn (Netlify auto-detects yarn.lock — explicit just in case).
+  YARN_VERSION = "1.22.22"
+
+  # Skip Netlify's interactive prompts during expo CLI calls.
+  CI = "true"
+
+  # Suppress secret-scan false-positives on EXPO_PUBLIC_ env vars
+  # (these are public by design — they are bundled into the client).
+  SECRETS_SCAN_OMIT_KEYS = "EXPO_PUBLIC_BACKEND_URL,EXPO_PACKAGER_PROXY_URL,EXPO_PACKAGER_HOSTNAME,EXPO_TUNNEL_SUBDOMAIN"
+
+# -----------------------------------------------------------------------------
+# Required environment variables — set these in:
+#   Netlify Dashboard → Site settings → Environment variables
+#
+#   EXPO_PUBLIC_BACKEND_URL = https://YOUR-PROD-BACKEND.example.com
+#
+# The web build will call /api/* on this host. If left unset, all backend
+# requests will fail in production.
+# -----------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------
+# SPA routing — every unknown route falls back to /index.html so Expo Router
+# can pick it up client-side. Without this, deep links like /(tabs)/saved
+# would 404 on a hard refresh.
+# -----------------------------------------------------------------------------
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# -----------------------------------------------------------------------------
+# Sensible long-cache for static assets (Expo emits hashed filenames).
+# -----------------------------------------------------------------------------
+[[headers]]
+  for = "/_expo/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
